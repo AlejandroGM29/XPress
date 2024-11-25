@@ -1,0 +1,170 @@
+[
+  {
+    "id": 1,
+    "nombre": "Juan Pérez",
+    "tipo": "Talachero/Vulca",
+    "servicios": ["Reparación de llantas", "Cambio de neumáticos", "Inflado de llantas"],
+    "ubicacion": "Ciudad de México",
+    "puntuacion": 4.5,
+    "resenas": 124,
+    "precio_base": 100,
+    "precio_distancia_km": 10,
+    "trabajos": [
+      {
+        "nombre": "Reparación de llantas",
+        "descripcion": "Reparación de pinchaduras y daños menores en llantas.",
+        "precio": 120
+      },
+      {
+        "nombre": "Cambio de neumáticos",
+        "descripcion": "Sustitución de neumáticos por otros nuevos o usados.",
+        "precio": 200
+      }
+    ],
+    "imagen": null,
+    "contacto": {
+      "telefono": "555-123-4567",
+      "correo": "juan.perez@xpress.com"
+    }
+  },
+  {
+    "id": 2,
+    "nombre": "Ana López",
+    "tipo": "Mecánico",
+    "servicios": ["Cambio de aceite", "Revisión general", "Ajustes de frenos"],
+    "ubicacion": "Monterrey",
+    "puntuacion": 4.8,
+    "resenas": 200,
+    "precio_base": 150,
+    "precio_distancia_km": 15,
+    "trabajos": [
+      {
+        "nombre": "Cambio de aceite",
+        "descripcion": "Cambio de aceite del motor para mejorar el rendimiento.",
+        "precio": 250
+      },
+      {
+        "nombre": "Revisión general",
+        "descripcion": "Revisión completa del vehículo para detectar problemas.",
+        "precio": 500
+      }
+    ],
+    "imagen": null,
+    "contacto": {
+      "telefono": "811-987-6543",
+      "correo": "ana.lopez@xpress.com"
+    }
+  },
+  {
+    "id": 3,
+    "nombre": "Carlos Ramírez",
+    "tipo": "Talachero/Vulca",
+    "servicios": ["Parcheo de llantas", "Rotación de llantas"],
+    "ubicacion": "Guadalajara",
+    "puntuacion": 4.2,
+    "resenas": 87,
+    "precio_base": 80,
+    "precio_distancia_km": 8,
+    "trabajos": [
+      {
+        "nombre": "Parcheo de llantas",
+        "descripcion": "Colocación de parches para reparar pinchaduras.",
+        "precio": 100
+      },
+      {
+        "nombre": "Rotación de llantas",
+        "descripcion": "Rotación para prolongar la vida útil de las llantas.",
+        "precio": 50
+      }
+    ],
+    "imagen": null,
+    "contacto": {
+      "telefono": "333-456-7890",
+      "correo": "carlos.ramirez@xpress.com"
+    }
+  },
+  {
+    "id": 4,
+    "nombre": "Lucía Hernández",
+    "tipo": "Mecánico",
+    "servicios": ["Diagnóstico de motor", "Cambio de batería", "Reparación de sistema eléctrico"],
+    "ubicacion": "Tijuana",
+    "puntuacion": 4.9,
+    "resenas": 320,
+    "precio_base": 200,
+    "precio_distancia_km": 20,
+    "trabajos": [
+      {
+        "nombre": "Diagnóstico de motor",
+        "descripcion": "Identificación de problemas en el motor.",
+        "precio": 300
+      },
+      {
+        "nombre": "Cambio de batería",
+        "descripcion": "Sustitución de batería para vehículos.",
+        "precio": 400
+      }
+    ],
+    "imagen": null,
+    "contacto": {
+      "telefono": "664-321-6547",
+      "correo": "lucia.hernandez@xpress.com"
+    }
+  },
+  {
+    "id": 5,
+    "nombre": "David Gómez",
+    "tipo": "Talachero/Vulca",
+    "servicios": ["Reparación de llantas", "Inflado de neumáticos"],
+    "ubicacion": "Toluca",
+    "puntuacion": 4.3,
+    "resenas": 98,
+    "precio_base": 90,
+    "precio_distancia_km": 9,
+    "trabajos": [
+      {
+        "nombre": "Reparación de llantas",
+        "descripcion": "Reparación rápida y confiable.",
+        "precio": 100
+      },
+      {
+        "nombre": "Inflado de neumáticos",
+        "descripcion": "Revisión y ajuste de presión de aire.",
+        "precio": 20
+      }
+    ],
+    "imagen": null,
+    "contacto": {
+      "telefono": "722-987-6543",
+      "correo": "david.gomez@xpress.com"
+    }
+  },
+  {
+    "id": 6,
+    "nombre": "Sofía Martínez",
+    "tipo": "Mecánico",
+    "servicios": ["Cambio de aceite", "Ajustes de frenos", "Revisión de suspensión"],
+    "ubicacion": "Cancún",
+    "puntuacion": 4.7,
+    "resenas": 156,
+    "precio_base": 180,
+    "precio_distancia_km": 18,
+    "trabajos": [
+      {
+        "nombre": "Cambio de aceite",
+        "descripcion": "Cambio de aceite para mayor rendimiento.",
+        "precio": 250
+      },
+      {
+        "nombre": "Ajustes de frenos",
+        "descripcion": "Revisión y ajuste completo de frenos.",
+        "precio": 300
+      }
+    ],
+    "imagen": null,
+    "contacto": {
+      "telefono": "998-123-4567",
+      "correo": "sofia.martinez@xpress.com"
+    }
+  }
+]

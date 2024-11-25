@@ -101,7 +101,9 @@ $(document).on("submit", "#login-form", function (event) {
 function loginUser(user) {
   localStorage.setItem("activeSession", JSON.stringify(user));
   alert(`Bienvenido, ${user.name}!`);
-  location.href = "index.html"; // Redirigir al inicio
+
+  updateNavbarForSession(); // Actualizar el navbar
+  loadPage("user.html"); // Redirigir a la página principal del usuario
 }
 
 // Funciones auxiliares para localStorage

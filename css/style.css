@@ -178,3 +178,92 @@ form div {
 button[type="submit"] {
   margin-top: 10px; /* Espaciado sobre el botón */
 }
+
+
+/* Diseño pagina princiapal usuario */
+/* Tarjeta de talachero */
+.card-talachero {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  overflow: hidden;
+}
+
+.card-talachero img {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+}
+
+.card-talachero-body {
+  padding: 10px;
+  flex: 1;
+}
+
+.card-talachero h5 {
+  margin: 0 0 10px 0;
+}
+
+/* Servicios detallados */
+.card-servicio {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.card-servicio .servicio-info {
+  flex: 1;
+}
+
+.card-servicio .servicio-precio {
+  margin-left: 20px;
+  font-weight: bold;
+  color: #007bff;
+}
+
+.navbar .nav-link {
+  margin-right: 10px;
+}
+
+.card-wide {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  background-color: #fff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.talachero-img,
+.talachero-detail-img {
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.talachero-detail-body {
+  flex-grow: 1;
+}
+
+.card-servicio {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #ddd;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+}
+
+.card-servicio:hover {
+  background-color: #f1f1f1;
+}
