@@ -1,0 +1,63 @@
+<div class="form-flip-container">
+  <div class="form-flip">
+    <!-- Login Form -->
+    <div class="front form-box">
+      <form id="login-form">
+        <h2 class="text-center">Iniciar sesión</h2>
+        <div class="mb-3">
+          <label for="login-email" class="form-label">Correo Electrónico</label>
+          <input type="email" class="form-control" id="login-email" placeholder="Correo Electrónico" required>
+        </div>
+        <div class="mb-3">
+          <label for="login-password" class="form-label">Contraseña</label>
+          <input type="password" class="form-control" id="login-password" placeholder="Contraseña" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Iniciar sesión</button>
+        <p class="text-center mt-3">
+          ¿No tienes cuenta? <span class="toggle-form text-primary" style="cursor: pointer;">Crear cuenta</span>
+        </p>
+      </form>
+    </div>
+
+    <!-- Register Form -->
+    <div class="back form-box">
+      <form id="register-form">
+        <h2 class="text-center">Crear Cuenta</h2>
+        <div class="mb-3">
+          <label for="register-name" class="form-label">Nombre Completo</label>
+          <input type="text" class="form-control" id="register-name" placeholder="Nombre Completo" required>
+        </div>
+        <div class="mb-3">
+          <label for="register-email" class="form-label">Correo Electrónico</label>
+          <input type="email" class="form-control" id="register-email" placeholder="Correo Electrónico" required>
+        </div>
+        <div class="mb-3">
+          <label for="register-password" class="form-label">Contraseña</label>
+          <input type="password" class="form-control" id="register-password" placeholder="Contraseña" required>
+        </div>
+        <div class="mb-3">
+          <label for="user-type" class="form-label">Tipo de Usuario</label>
+          <select class="form-select" id="user-type" required>
+            <option value="">Selecciona...</option>
+            <option value="usuario">Usuario</option>
+            <option value="talachero">Talachero</option>
+          </select>
+        </div>
+        <div id="user-subtype-fields" class="mb-3" style="display: none;">
+          <label for="user-subtype" class="form-label">Subtipo de Usuario</label>
+          <select class="form-select" id="user-subtype" required>
+            <!-- Opciones dinámicas cargadas por JS -->
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="talachero-ine" class="form-label">INE (solo talacheros)</label>
+          <input type="text" id="talachero-ine" class="form-control" placeholder="INE" readonly>
+        </div>
+        <button type="submit" class="btn btn-success w-100">Crear Cuenta</button>
+        <p class="text-center mt-3">
+          ¿Ya tienes cuenta? <span class="toggle-form text-primary" style="cursor: pointer;">Iniciar sesión</span>
+        </p>
+      </form>
+    </div>
+  </div>
+</div>

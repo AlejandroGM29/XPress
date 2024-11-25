@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crear Cuenta</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Formulario de Registro -->
+  <div class="form-container">
+    <form id="register-form" class="form-box">
+      <h2>Crear Cuenta</h2>
+      <div class="mb-3">
+        <label for="register-name" class="form-label">Nombre Completo</label>
+        <input type="text" class="form-control" id="register-name" placeholder="Nombre Completo" required>
+      </div>
+      <div class="mb-3">
+        <label for="register-email" class="form-label">Correo Electrónico</label>
+        <input type="email" class="form-control" id="register-email" placeholder="Correo Electrónico" required>
+      </div>
+      <div class="mb-3">
+        <label for="register-password" class="form-label">Contraseña</label>
+        <input type="password" class="form-control" id="register-password" placeholder="Contraseña" required>
+      </div>
+      <div class="mb-3">
+        <label for="user-type" class="form-label">Tipo de Usuario</label>
+        <select class="form-select" id="user-type">
+          <option value="usuario">Usuario</option>
+          <option value="talachero">Talachero</option>
+        </select>
+      </div>
+      <div id="talachero-extra-fields" style="display: none;">
+        <div class="mb-3">
+          <label for="talachero-ine" class="form-label">INE (solo talacheros)</label>
+          <input type="text" id="talachero-ine" class="form-control" placeholder="INE" required>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-success w-100">Crear Cuenta</button>
+    </form>
+    <div class="text-center mt-3">
+      <p>¿Ya tienes cuenta? <a href="login.html">Iniciar sesión</a></p>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="js/auth.js"></script> <!-- Aquí cargamos auth.js -->
+</body>
+</html>
