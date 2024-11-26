@@ -1,0 +1,29 @@
+#nuestro-equipo .team-member img {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border: 3px solid var(--color-azul-profundo);
+  }
+  
+  #nuestro-equipo h4 {
+    color: var(--color-naranja-vibrante);
+    margin-top: var(--spacing-small);
+  }
+  
+  #about-us, #problem, #innovation {
+    background-color: var(--color-gris-claro);
+    padding: var(--spacing-medium);
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  #about-us h2, #problem h2, #innovation h2 {
+    color: var(--color-azul-profundo);
+    margin-bottom: var(--spacing-small);
+  }
+  
+  #about-us ul, #innovation ul {
+    list-style-type: disc;
+    margin-left: 20px;
+  }
+  

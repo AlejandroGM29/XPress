@@ -1,142 +1,36 @@
 <!-- Hero Section -->
-<!-- Hero Section -->
-<section
-  class="hero-section text-center text-white d-flex align-items-center justify-content-center"
-  style="
-    background-image: url('img/mecanicos.png');
-    background-size: cover;
-    background-position: center;
-    height: 80vh;
-    position: relative;
-  "
->
-  <!-- Overlay para dar efecto de sombreado -->
+<section class="hero-section d-flex align-items-center text-white" style="height: 100vh;">
+  <!-- Imagen de fondo con degradado -->
   <div
-    class="overlay-bg"
+    class="hero-bg"
+    style="
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.8)), url('img/mecanicos.png');
+      background-size: cover;
+      background-position: center;
+      z-index: -1;
+    "
   ></div>
 
-  <!-- Contenido superpuesto -->
-  <div class="container-fluid banner">
-    <div class="overlay">
-        <h1>XPress</h1>
-        <p>Conectamos a traileros y conductores con servicios confiables en el momento que más lo necesitan.</p>
-    </div>
-  </div>
-</section>
-
-
-<!-- Sobre Nosotros -->
-<section id="sobre-nosotros" class="py-5">
-  <div class="container">
-    <h2 class="text-center mb-4">Sobre Nosotros</h2>
-    <p>
-      En XPress, somos una plataforma diseñada para facilitar la conexión entre
-      profesionales del transporte y expertos en servicios mecánicos,
-      vulcanización y más. Nuestro objetivo es garantizar soluciones rápidas y
-      confiables para que los conductores puedan continuar su camino sin
-      contratiempos.
-    </p>
-    <p>
-      Creemos en la innovación y la tecnología para optimizar la asistencia en
-      carretera, ofreciendo herramientas como cotizaciones inmediatas,
-      seguimiento en tiempo real y un equipo altamente calificado dispuesto a
-      ayudarte cuando más lo necesites.
-    </p>
-  </div>
-</section>
-
-<!-- Servicios -->
-<section id="servicios" class="py-5 bg-light">
-  <div class="container">
-    <h2 class="text-center mb-4">Nuestros Servicios</h2>
-    <ul class="list-group list-group-flush">
-      <li class="list-group-item">Reparación de llantas (Vulcanización)</li>
-      <li class="list-group-item">
-        Servicios mecánicos para vehículos pesados y ligeros
-      </li>
-      <li class="list-group-item">Asistencia en carretera</li>
-      <li class="list-group-item">
-        Cotizaciones inmediatas y seguimiento en tiempo real
-      </li>
-    </ul>
-  </div>
-</section>
-
-<!-- Nuestro Equipo -->
-<section id="nuestro-equipo" class="py-5">
-  <div class="container">
-    <h2 class="text-center mb-4">Nuestro Equipo</h2>
-    <div class="row">
-      <!-- Primer fila de tres integrantes -->
-      <div class="col-md-4 text-center">
-        <img
-          src="img/team/person.png"
-          alt="María López"
-          class="rounded-circle img-fluid team-img mb-3"
-        />
-        <h5>María López</h5>
-        <p>CEO</p>
-      </div>
-      <div class="col-md-4 text-center">
-        <img
-          src="img/team/person.png"
-          alt="Juan Pérez"
-          class="rounded-circle img-fluid team-img mb-3"
-        />
-        <h5>Juan Pérez</h5>
-        <p>Director de Operaciones</p>
-      </div>
-      <div class="col-md-4 text-center">
-        <img
-          src="img/team/person.png"
-          alt="Ana García"
-          class="rounded-circle img-fluid team-img mb-3"
-        />
-        <h5>Ana García</h5>
-        <p>Gerente de Tecnología</p>
-      </div>
-
-      <!-- Segunda fila de tres integrantes -->
-      <div class="col-md-4 text-center">
-        <img
-          src="img/team/person.png"
-          alt="Carlos Martínez"
-          class="rounded-circle img-fluid team-img mb-3"
-        />
-        <h5>Carlos Martínez</h5>
-        <p>Jefe de Marketing</p>
-      </div>
-      <div class="col-md-4 text-center">
-        <img
-          src="img/team/person.png"
-          alt="Lucía Ramírez"
-          class="rounded-circle img-fluid team-img mb-3"
-        />
-        <h5>Lucía Ramírez</h5>
-        <p>Directora de Finanzas</p>
-      </div>
-      <div class="col-md-4 text-center">
-        <img
-          src="img/team/person.png"
-          alt="David Gómez"
-          class="rounded-circle img-fluid team-img mb-3"
-        />
-        <h5>David Gómez</h5>
-        <p>Gerente de Producto</p>
-      </div>
-
-      <!-- Tercer fila con el último integrante centrado -->
-      <div class="col-md-4 offset-md-4 text-center">
-        <img
-          src="img/team/person.png"
-          alt="Marta Ruiz"
-          class="rounded-circle img-fluid team-img mb-3"
-        />
-        <h5>Marta Ruiz</h5>
-        <p>Jefa de Soporte</p>
+  <!-- Contenido del banner -->
+  <div class="container text-start">
+    <div class="row align-items-center">
+      <!-- Contenido de texto -->
+      <div class="col-md-7">
+        <h1 class="display-2 fw-bold text-uppercase">Talacheros y Mecánicos</h1>
+        <p class="lead mt-3" style="font-size: 1.4rem;">
+          Solicita nuestros servicios confiables <strong>las 24 horas del día</strong>, los 7 días de la semana.
+        </p>
+        <ul class="list-unstyled mt-4">
+          <li class="mb-2"><i class="bi bi-check-circle-fill text-success"></i> Profesionales calificados</li>
+          <li class="mb-2"><i class="bi bi-check-circle-fill text-success"></i> Rapidez y atención inmediata</li>
+          <li><i class="bi bi-check-circle-fill text-success"></i> Elección autónoma guiada por reseñas</li>
+        </ul>
       </div>
     </div>
   </div>
 </section>
-
-

@@ -1,0 +1,67 @@
+
+<section class="register-login-section">
+  <!-- Banner -->
+  <div class="banner-image position-relative">
+    <div class="banner-overlay d-flex align-items-center justify-content-center">
+      <h1 class="text-white text-uppercase text-center">
+        Regístrate ahora y soluciona tus problemas en el camino con un <span class="text-warning">click</span>
+      </h1>
+    </div>
+  </div>
+
+  <!-- Contenedor principal del formulario -->
+  <div class="form-container position-relative">
+    <div class="form-flip-container">
+      <!-- Formulario de Login -->
+      <form id="login-form" class="form-box">
+        <h2 class="text-center">Iniciar sesión</h2>
+        <div class="mb-3">
+          <label for="login-email" class="form-label">Correo Electrónico</label>
+          <input type="email" class="form-control" id="login-email" placeholder="Correo Electrónico" required>
+        </div>
+        <div class="mb-3">
+          <label for="login-password" class="form-label">Contraseña</label>
+          <input type="password" class="form-control" id="login-password" placeholder="Contraseña" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Iniciar sesión</button>
+        <p class="text-center mt-3">
+          ¿No tienes cuenta? <span class="toggle-form text-primary" style="cursor: pointer;">Crear cuenta</span>
+        </p>
+      </form>
+
+      <!-- Formulario de Registro -->
+      <form id="register-form" class="form-box d-none">
+        <h2>Crear Cuenta</h2>
+        <div class="mb-3">
+          <label for="register-name" class="form-label">Nombre Completo</label>
+          <input type="text" class="form-control" id="register-name" placeholder="Nombre Completo" required>
+        </div>
+        <div class="mb-3">
+          <label for="register-email" class="form-label">Correo Electrónico</label>
+          <input type="email" class="form-control" id="register-email" placeholder="Correo Electrónico" required>
+        </div>
+        <div class="mb-3">
+          <label for="register-password" class="form-label">Contraseña</label>
+          <input type="password" class="form-control" id="register-password" placeholder="Contraseña" required>
+        </div>
+        <div class="mb-3">
+          <label for="user-type" class="form-label">Tipo de Usuario</label>
+          <select class="form-select" id="user-type">
+            <option value="usuario">Usuario</option>
+            <option value="talachero">Talachero</option>
+          </select>
+        </div>
+        <div id="talachero-extra-fields" style="display: none;">
+          <div class="mb-3">
+            <label for="talachero-ine" class="form-label">INE (solo talacheros)</label>
+            <input type="text" id="talachero-ine" class="form-control" placeholder="INE" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-success w-100">Crear Cuenta</button>
+        <p class="text-center mt-3">
+          ¿Ya tienes cuenta? <span class="toggle-form text-primary" style="cursor: pointer;">Iniciar sesión</span>
+        </p>
+      </form>
+    </div>
+  </div>
+</section>

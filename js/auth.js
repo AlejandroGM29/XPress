@@ -12,6 +12,7 @@ function adjustFormHeight() {
 
 // Ajustar la altura al cargar la página
 $(document).ready(function () {
+  $(".form-flip-container").removeClass("flipped"); // Forzar que siempre cargue en "Iniciar sesión"
   adjustFormHeight(); // Ajustar la altura inicial
 });
 

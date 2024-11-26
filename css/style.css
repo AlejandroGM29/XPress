@@ -4,18 +4,18 @@
   --color-gris-oscuro: #333333;
   --color-blanco: #FFFFFF;
   --color-verde-esmeralda: #22AA66;
-  --color-gris-claro: #F5F5F5; /* Añadí esta variable */
+  --color-gris-claro: #F5F5F5;
   --font-family-primary: 'Arial', sans-serif;
   --font-size-base: 16px;
-  --spacing-small: 10px; /* Definí un valor de espaciado pequeño */
-  --spacing-medium: 20px; /* Definí un valor de espaciado medio */
-  --border-radius: 8px; /* Definí un valor para bordes redondeados */
+  --spacing-small: 10px;
+  --spacing-medium: 20px;
+  --border-radius: 8px;
 }
 
 body {
   font-family: var(--font-family-primary);
   font-size: var(--font-size-base);
-  line-height: 1.5; /* Mejora la legibilidad */
+  line-height: 1.5;
   background-color: var(--color-gris-claro);
   color: var(--color-gris-oscuro);
   margin: 0;
@@ -35,235 +35,14 @@ body {
   color: var(--color-naranja-vibrante);
 }
 
-#nuestro-equipo .team-member img {
-  width: 150px;
-  height: 150px;
-  object-fit: cover;
-  border: 3px solid var(--color-azul-profundo);
+button[type="submit"] {
+  margin-top: 10px;
 }
 
-#nuestro-equipo h4 {
-  color: var(--color-naranja-vibrante);
-  margin-top: var(--spacing-small);
-}
-
-#about-us, #problem, #innovation {
-  background-color: var(--color-gris-claro);
-  padding: var(--spacing-medium);
-  border-radius: var(--border-radius);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-#about-us h2, #problem h2, #innovation h2 {
-  color: var(--color-azul-profundo);
+form div {
   margin-bottom: var(--spacing-small);
 }
 
-#about-us ul, #innovation ul {
-  list-style-type: disc;
-  margin-left: 20px;
-}
-
-.hero-section {
-  position: relative;
-  background-size: cover;
-  background-position: center;
-  min-height: 60vh; /* Altura mínima ajustada para pantallas pequeñas */
-}
-
-.overlay-bg {
-  background-color: rgba(0, 0, 0, 0.6); /* Fondo oscuro */
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.banner {
-  position: relative;
-  text-align: center;
-  z-index: 1; /* Asegura que el contenido esté por encima del overlay */
-}
-
-.overlay {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-  color: white;
-  z-index: 2;
-}
-
-.overlay h1 {
-  font-size: 3rem; /* Ajusta el tamaño según sea necesario */
-  margin-bottom: 20px;
-}
-
-.overlay p {
-  font-size: 1.2rem;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.team-img {
-  width: 150px; /* Tamaño personalizado */
-  height: 150px; /* Mantener el círculo */
-  object-fit: cover; /* Recorta para ajustar proporciones */
-  border: 3px solid #ddd; /* Borde opcional */
-}
-.form-flip-container {
-  perspective: 1000px;
-  position: relative;
-  width: 100%;
-  max-width: 400px;
-  margin: auto;
-  height: fit-content; /* Ajusta la altura al contenido dinámicamente */
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* Sombra suave */
-  border-radius: var(--border-radius);
-  transition: height 0.3s ease-in-out; /* Transición suave al cambiar la altura */
-}
-
-.form-flip {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 0.6s ease-in-out;
-}
-
-.front, .back {
-  backface-visibility: hidden;
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-}
-
-.front {
-  z-index: 2;
-  transform: rotateY(0deg);
-}
-
-.back {
-  z-index: 1;
-  transform: rotateY(180deg);
-}
-
-.flipped .form-flip {
-  transform: rotateY(180deg);
-}
-
-.form-box {
-  padding: 20px;
-  background-color: var(--color-blanco);
-  border-radius: var(--border-radius);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
-
-
-
-#talachero-extra-fields {
-  margin-bottom: var(--spacing-small); /* Espaciado entre el campo y el botón */
-  display: none; /* Ocultar inicialmente */
-}
-
-
-form div {
-  margin-bottom: var(--spacing-small); /* Espaciado uniforme entre los elementos del formulario */
-}
-
-button[type="submit"] {
-  margin-top: 10px; /* Espaciado sobre el botón */
-}
-
-
-/* Diseño pagina princiapal usuario */
-/* Tarjeta de talachero */
-.card-talachero {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  display: flex;
-  overflow: hidden;
-}
-
-.card-talachero img {
-  width: 150px;
-  height: 150px;
-  object-fit: cover;
-}
-
-.card-talachero-body {
-  padding: 10px;
-  flex: 1;
-}
-
-.card-talachero h5 {
-  margin: 0 0 10px 0;
-}
-
-/* Servicios detallados */
-.card-servicio {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 10px;
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: space-between;
-}
-
-.card-servicio .servicio-info {
-  flex: 1;
-}
-
-.card-servicio .servicio-precio {
-  margin-left: 20px;
-  font-weight: bold;
-  color: #007bff;
-}
-
-.navbar .nav-link {
-  margin-right: 10px;
-}
-
-.card-wide {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 15px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  margin-bottom: 15px;
-  background-color: #fff;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.talachero-img,
-.talachero-detail-img {
-  width: 100px;
-  height: 100px;
-  border-radius: 8px;
-  object-fit: cover;
-}
-
-.talachero-detail-body {
-  flex-grow: 1;
-}
-
-.card-servicio {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px;
-  border: 1px solid #ddd;
-  margin-bottom: 10px;
-  border-radius: 5px;
-  background-color: #f9f9f9;
-}
-
-.card-servicio:hover {
-  background-color: #f1f1f1;
+p.lead {
+  font-size: 1.4rem;
 }

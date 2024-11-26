@@ -1,0 +1,46 @@
+.card-talachero {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: flex;
+    overflow: hidden;
+  }
+  
+  .card-talachero img {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+  }
+  
+  .card-talachero-body {
+    padding: 10px;
+    flex: 1;
+  }
+  
+  .card-talachero h5 {
+    margin: 0 0 10px 0;
+  }
+  
+  .card-servicio {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .card-servicio .servicio-info {
+    flex: 1;
+  }
+  
+  .card-servicio .servicio-precio {
+    margin-left: 20px;
+    font-weight: bold;
+    color: #007bff;
+  }
+  
+  .card-servicio:hover {
+    background-color: #f1f1f1;
+  }
+  
