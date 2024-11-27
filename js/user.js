@@ -1,130 +1,131 @@
 $(document).ready(function () {
-    let talacheros = []; // Almacén de talacheros
-  
-    // Obtener imágenes desde una API o usar una predeterminada
-    async function fetchImage() {
-      try {
-        const response = await fetch("https://randomuser.me/api/");
-        const data = await response.json();
-        return data.results[0].picture.large;
-      } catch (error) {
-        console.error("Error al obtener la imagen:", error);
-        return "img/default.jpg"; // Imagen predeterminada
-      }
+  let talacheros = [];
+  let selectedType = "";
+
+  // Cargar Talacheros/Mecánicos
+  async function loadTalacheros() {
+    try {
+      const response = await fetch("helpers/talacheros.json");
+      talacheros = await response.json();
+    } catch (error) {
+      console.error("Error al cargar los datos:", error);
     }
-  
-    // Cargar talacheros desde el archivo JSON
-    async function loadTalacheros() {
-      try {
-        const response = await fetch("helpers/talacheros.json");
-        talacheros = await response.json();
-  
-        // Asignar imágenes dinámicas si no tienen una asignada
-        for (let talachero of talacheros) {
-          talachero.imagen = talachero.imagen || (await fetchImage());
-        }
-  
-        renderTalacheros(talacheros);
-      } catch (error) {
-        console.error("Error al cargar talacheros:", error);
-      }
-    }
-  
-    // Renderizar el listado de talacheros
-    function renderTalacheros(talacherosList) {
-      const container = $("#talacheros-list");
-      const detailsContainer = $("#talachero-details");
-  
-      container.html("").show(); // Limpiar y mostrar el contenedor
-      detailsContainer.hide(); // Ocultar los detalles
-  
-      talacherosList.forEach((talachero, index) => {
-        const card = $(`
-          <div class="talachero-card" style="display: none;">
-            <div class="card-talachero card-wide" data-id="${talachero.id}">
-              <img src="${talachero.imagen}" alt="${talachero.nombre}" class="talachero-img">
-              <div class="card-talachero-body">
-                <h5>${talachero.nombre}</h5>
-                <p><strong>Puntuación:</strong> ${talachero.puntuacion} ⭐ (${talachero.resenas} reseñas)</p>
-                <p><strong>Contacto:</strong> ${talachero.contacto.telefono} | ${talachero.contacto.correo}</p>
-              </div>
+  }
+
+  // Mostrar lista de Talacheros/Mecánicos con animación
+  function renderTalacheros(type) {
+    const filtered = talacheros.filter((t) => t.tipo === type).reverse(); // Orden inverso
+    const container = $("#talacheros-list");
+
+    // Actualizar el título dinámico
+    const sectionTitle = type === "Talachero/Vulca" ? "Talacheros Disponibles" : "Mecánicos Disponibles";
+    $("#section-title").text(sectionTitle);
+
+    // Limpiar lista y mostrar el contenedor de la lista
+    container.html("");
+    $("#list-section").hide(); // Ocultar temporalmente para reiniciar la animación
+    $("#user-choice").hide("slide", { direction: "left" }, 500, function () {
+      $("#list-section").fadeIn(300); // Mostrar sección después de la animación
+    });
+
+    setTimeout(() => {
+      // Generar todas las tarjetas ocultas
+      filtered.forEach((talachero) => {
+        const listItem = `
+          <div class="list-item d-flex align-items-center" data-id="${talachero.id}" style="display: none;">
+            <img src="${talachero.imagen || './img/team/person.png'}" class="list-img" alt="${talachero.nombre}">
+            <div class="list-content ms-3">
+              <h5>${talachero.nombre}</h5>
+              <p><strong>Puntuación:</strong> ${talachero.puntuacion} ⭐ (${talachero.resenas} reseñas)</p>
+              <p>${talachero.servicios.join(", ")}</p>
             </div>
-          </div>
-        `);
-  
-        container.append(card);
-  
-        // Animación de slide para cada tarjeta, una por una
-        setTimeout(() => {
-          card.show("slide", { direction: "right" }, 300);
-        }, index * 150); // Tiempo entre cada tarjeta
+          </div>`;
+        container.append(listItem);
       });
-    }
-  
-    // Mostrar detalles del talachero seleccionado
-    function viewTalacheroDetails(talacheroId) {
-      const talachero = talacheros.find((t) => t.id === talacheroId);
-      if (!talachero) return;
-  
-      const detailsContainer = $("#talachero-details");
-      const talacherosContainer = $("#talacheros-list");
-  
-      talacherosContainer.hide("slide", { direction: "left" }, 500); // Ocultar listado con animación
-  
-      detailsContainer.html(`
-        <button id="back-to-list" class="btn btn-secondary mb-3">Volver</button>
-        <div class="card-talachero-detail card-wide">
-          <img src="${talachero.imagen}" alt="${talachero.nombre}" class="talachero-detail-img">
-          <div class="talachero-detail-body">
+
+      // Aplicar animación `slide` a cada tarjeta secuencialmente
+      const items = container.find(".list-item");
+      items.each((index, item) => {
+        setTimeout(() => {
+          $(item).show("slide", { direction: "right" }, 300);
+        }, index * 150); // Retraso entre cada tarjeta
+      });
+    }, 300); // Retraso para asegurar que el contenedor está visible
+  }
+
+  // Mostrar detalles del Talachero/Mecánico
+  function viewTalacheroDetails(id) {
+    const talachero = talacheros.find((t) => t.id === id);
+    if (!talachero) return;
+
+    const profileContainer = $("#talachero-profile");
+    const servicesContainer = $("#services-list");
+
+    // Configurar botones de navegación y título del perfil
+    $("#back-to-list").show(); // Mostrar botón para volver a lista
+    $("#back-to-choice").hide(); // Ocultar botón para volver a elección
+    $("#profile-title").text(`Perfil de ${talachero.nombre}`);
+
+    $("#talacheros-list").hide("slide", { direction: "left" }, 500, function () {
+      // Cargar perfil del talachero después de ocultar la lista
+      profileContainer.html(`
+        <div class="list-item d-flex align-items-center">
+          <img src="${talachero.imagen || './img/team/person.png'}" class="list-img" alt="${talachero.nombre}">
+          <div class="list-content ms-3">
             <h5>${talachero.nombre}</h5>
-            <p><strong>Puntuación:</strong> ${talachero.puntuacion} ⭐ (${talachero.resenas} reseñas)</p>
             <p><strong>Contacto:</strong> ${talachero.contacto.telefono} | ${talachero.contacto.correo}</p>
           </div>
         </div>
-        <div id="services-list" class="mt-3">
-          <h6>Servicios:</h6>
-          ${talachero.trabajos
-            .map(
-              (trabajo, index) => `
-            <div class="card-servicio" style="display: none;" data-index="${index}">
-              <div class="servicio-info">
-                <h6>${trabajo.nombre}</h6>
-                <p>${trabajo.descripcion}</p>
-              </div>
-              <div class="servicio-precio">$${trabajo.precio}</div>
-            </div>
-          `
-            )
-            .join("")}
-        </div>
       `);
-  
-      detailsContainer.show("slide", { direction: "right" }, 500); // Mostrar detalles con animación
-  
-      // Animación para servicios uno por uno
-      talachero.trabajos.forEach((_, index) => {
-        setTimeout(() => {
-          $(`.card-servicio[data-index="${index}"]`).slideDown("slow");
-        }, index * 150); // Tiempo entre cada tarjeta
-      });
-    }
-  
-    // Evento para manejar el clic en un talachero
-    $(document).on("click", ".card-talachero", function () {
-      const talacheroId = $(this).data("id");
-      viewTalacheroDetails(talacheroId);
+
+      // Servicios del Talachero
+      servicesContainer.html(
+        talachero.trabajos
+          .map(
+            (trabajo) => `
+          <div class="list-item d-flex justify-content-between align-items-center">
+            <div>
+              <h6>${trabajo.nombre}</h6>
+              <p>${trabajo.descripcion}</p>
+            </div>
+            <strong>$${trabajo.precio}</strong>
+          </div>`
+          )
+          .join("")
+      );
+
+      $("#talachero-details").show("slide", { direction: "right" }, 500); // Mostrar perfil
     });
-  
-    // Evento para volver al listado
-    $(document).on("click", "#back-to-list", function () {
-      const detailsContainer = $("#talachero-details");
-      const talacherosContainer = $("#talacheros-list");
-  
-      detailsContainer.hide("slide", { direction: "right" }, 500); // Ocultar detalles con animación
-      talacherosContainer.show("slide", { direction: "left" }, 500); // Mostrar listado con animación
-    });
-  
-    // Cargar los talacheros al iniciar
-    loadTalacheros();
+  }
+
+  // Evento para seleccionar tipo de servicio (Talachero/Mecánico)
+  $(document).on("click", ".select-type", function () {
+    selectedType = $(this).data("type");
+    renderTalacheros(selectedType);
   });
-  
+
+  // Evento para mostrar detalles del Talachero/Mecánico
+  $(document).on("click", ".list-item", function () {
+    const id = $(this).data("id");
+    viewTalacheroDetails(id);
+  });
+
+  // Evento para regresar a la lista de Talacheros/Mecánicos
+  $(document).on("click", "#back-to-list", function () {
+    $("#talachero-details").hide("slide", { direction: "right" }, 500, function () {
+      $("#talacheros-list").show("slide", { direction: "left" }, 500);
+      $("#back-to-choice").show(); // Aseguramos que el botón de volver a elección reaparece
+    });
+  });
+
+  // Evento para regresar a la selección de tipo de servicio
+  $(document).on("click", "#back-to-choice", function () {
+    $("#list-section").hide("slide", { direction: "right" }, 500, function () {
+      $("#user-choice").show("slide", { direction: "left" }, 500);
+      $("#talacheros-list").html(""); // Limpiar lista para evitar duplicados
+    });
+  });
+
+  // Inicializar datos
+  loadTalacheros();
+});
