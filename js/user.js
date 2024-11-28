@@ -2,130 +2,163 @@ $(document).ready(function () {
   let talacheros = [];
   let selectedType = "";
 
-  // Cargar Talacheros/Mecánicos
+  // Cargar Talacheros/Mecánicos desde LocalStorage y helper
   async function loadTalacheros() {
     try {
+      // Obtener usuarios de LocalStorage
+      const users = getUsersFromLocalStorage();
+      console.log(users);
+      // Filtrar solo los talacheros y mecánicos
+      const localTalacheros = users.filter(
+        (user) => user.userType === "talachero"
+      );
+      console.log(localTalacheros);
+      // Obtener datos del helper
       const response = await fetch("helpers/talacheros.json");
-      talacheros = await response.json();
+      const helperTalacheros = await response.json();
+
+      // Combinar ambas fuentes
+      talacheros = [...localTalacheros, ...helperTalacheros];
     } catch (error) {
       console.error("Error al cargar los datos:", error);
     }
   }
 
-  // Mostrar lista de Talacheros/Mecánicos con animación
+  // Obtener usuarios de LocalStorage
+  function getUsersFromLocalStorage() {
+    const users = localStorage.getItem("users");
+    return users ? JSON.parse(users) : [];
+  }
+
+  // Mostrar lista de Talacheros/Mecánicos
   function renderTalacheros(type) {
-    const filtered = talacheros.filter((t) => t.tipo === type).reverse(); // Orden inverso
+    const filtered = talacheros.filter(
+      (t) => t.userSubtype === type && t.userType
+    );
     const container = $("#talacheros-list");
 
-    // Actualizar el título dinámico
-    const sectionTitle = type === "Talachero/Vulca" ? "Talacheros Disponibles" : "Mecánicos Disponibles";
+    const sectionTitle =
+      type === "talachero" ? "Talacheros Disponibles" : "Mecánicos Disponibles";
     $("#section-title").text(sectionTitle);
 
-    // Limpiar lista y mostrar el contenedor de la lista
     container.html("");
-    $("#list-section").hide(); // Ocultar temporalmente para reiniciar la animación
+    $("#list-section").hide();
     $("#user-choice").hide("slide", { direction: "left" }, 500, function () {
-      $("#list-section").fadeIn(300); // Mostrar sección después de la animación
+      $("#list-section").fadeIn(300);
     });
 
     setTimeout(() => {
-      // Generar todas las tarjetas ocultas
-      filtered.forEach((talachero) => {
+      filtered.forEach((talachero, index) => {
+        const servicesHtml = (talachero.services || [])
+          .map((service) => `<li>${service.name}</li>`)
+          .join("");
+
         const listItem = `
-          <div class="list-item d-flex align-items-center" data-id="${talachero.id}" style="display: none;">
-            <img src="${talachero.imagen || './img/team/person.png'}" class="list-img" alt="${talachero.nombre}">
-            <div class="list-content ms-3">
-              <h5>${talachero.nombre}</h5>
-              <p><strong>Puntuación:</strong> ${talachero.puntuacion} ⭐ (${talachero.resenas} reseñas)</p>
-              <p>${talachero.servicios.join(", ")}</p>
-            </div>
-          </div>`;
+        <div class="list-item d-flex align-items-center" data-id="${talachero.email}" style="display: none;">
+          <img src="${
+            talachero.photo || "./img/team/person.png"
+          }" class="list-img" alt="${talachero.name}">
+          <div class="list-content ms-3">
+            <ul class="services-list mb-2 mt-2">
+              ${servicesHtml}
+            </ul>
+            <p><strong>${talachero.name}  </strong> ${talachero.rating || "N/A"} ⭐ (${
+          talachero.reviews || 0
+        } reseñas)</p>
+          </div>
+        </div>`;
         container.append(listItem);
       });
 
-      // Aplicar animación `slide` a cada tarjeta secuencialmente
       const items = container.find(".list-item");
       items.each((index, item) => {
         setTimeout(() => {
           $(item).show("slide", { direction: "right" }, 300);
-        }, index * 150); // Retraso entre cada tarjeta
+        }, index * 150);
       });
-    }, 300); // Retraso para asegurar que el contenedor está visible
+    }, 300);
   }
 
   // Mostrar detalles del Talachero/Mecánico
-  function viewTalacheroDetails(id) {
-    const talachero = talacheros.find((t) => t.id === id);
+  function viewTalacheroDetails(email) {
+    const talachero = talacheros.find((t) => t.email === email);
     if (!talachero) return;
 
     const profileContainer = $("#talachero-profile");
     const servicesContainer = $("#services-list");
 
-    // Configurar botones de navegación y título del perfil
-    $("#back-to-list").show(); // Mostrar botón para volver a lista
-    $("#back-to-choice").hide(); // Ocultar botón para volver a elección
-    $("#profile-title").text(`Perfil de ${talachero.nombre}`);
+    $("#back-to-list").show();
+    $("#back-to-choice").hide();
+    $("#profile-title").text(`Perfil de ${talachero.name}`);
 
-    $("#talacheros-list").hide("slide", { direction: "left" }, 500, function () {
-      // Cargar perfil del talachero después de ocultar la lista
-      profileContainer.html(`
+    $("#talacheros-list").hide(
+      "slide",
+      { direction: "left" },
+      500,
+      function () {
+        profileContainer.html(`
         <div class="list-item d-flex align-items-center">
-          <img src="${talachero.imagen || './img/team/person.png'}" class="list-img" alt="${talachero.nombre}">
+          <img src="${
+            talachero.photo || "./img/team/person.png"
+          }" class="list-img" alt="${talachero.name}">
           <div class="list-content ms-3">
-            <h5>${talachero.nombre}</h5>
-            <p><strong>Contacto:</strong> ${talachero.contacto.telefono} | ${talachero.contacto.correo}</p>
+            <h5>${talachero.name}</h5>
+            <p><strong>Contacto:</strong> ${talachero.phone} | ${
+          talachero.email
+        }</p>
           </div>
         </div>
       `);
 
-      // Servicios del Talachero
-      servicesContainer.html(
-        talachero.trabajos
-          .map(
-            (trabajo) => `
+        servicesContainer.html(
+          (talachero.services || [])
+            .map(
+              (service) => `
           <div class="list-item d-flex justify-content-between align-items-center">
             <div>
-              <h6>${trabajo.nombre}</h6>
-              <p>${trabajo.descripcion}</p>
+              <h6>${service.name}</h6>
+              <p>${service.description}</p>
             </div>
-            <strong>$${trabajo.precio}</strong>
+            <strong>$${service.price}</strong>
           </div>`
-          )
-          .join("")
-      );
+            )
+            .join("")
+        );
 
-      $("#talachero-details").show("slide", { direction: "right" }, 500); // Mostrar perfil
-    });
+        $("#talachero-details").show("slide", { direction: "right" }, 500);
+      }
+    );
   }
 
-  // Evento para seleccionar tipo de servicio (Talachero/Mecánico)
   $(document).on("click", ".select-type", function () {
     selectedType = $(this).data("type");
+    console.log(selectedType);
     renderTalacheros(selectedType);
   });
 
-  // Evento para mostrar detalles del Talachero/Mecánico
   $(document).on("click", ".list-item", function () {
-    const id = $(this).data("id");
-    viewTalacheroDetails(id);
+    const email = $(this).data("id");
+    viewTalacheroDetails(email);
   });
 
-  // Evento para regresar a la lista de Talacheros/Mecánicos
   $(document).on("click", "#back-to-list", function () {
-    $("#talachero-details").hide("slide", { direction: "right" }, 500, function () {
-      $("#talacheros-list").show("slide", { direction: "left" }, 500);
-      $("#back-to-choice").show(); // Aseguramos que el botón de volver a elección reaparece
-    });
+    $("#talachero-details").hide(
+      "slide",
+      { direction: "right" },
+      500,
+      function () {
+        $("#talacheros-list").show("slide", { direction: "left" }, 500);
+        $("#back-to-choice").show();
+      }
+    );
   });
 
-  // Evento para regresar a la selección de tipo de servicio
   $(document).on("click", "#back-to-choice", function () {
     $("#list-section").hide("slide", { direction: "right" }, 500, function () {
       $("#user-choice").show("slide", { direction: "left" }, 500);
-      $("#talacheros-list").html(""); // Limpiar lista para evitar duplicados
+      $("#talacheros-list").html("");
     });
   });
 
-  // Inicializar datos
   loadTalacheros();
 });

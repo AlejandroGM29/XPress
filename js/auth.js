@@ -40,7 +40,7 @@ $(document).on("change", "#user-type", function () {
     $subtypeFields.show();
     $("#user-subtype").html(`
       <option value="">Selecciona...</option>
-      <option value="talachero-vulca">Talachero/Vulca</option>
+      <option value="talachero">Talachero/Vulca</option>
       <option value="mecanico">Mecánico</option>
     `);
     $ineField.attr("readonly", false); // Activar INE
@@ -54,11 +54,13 @@ $(document).on("submit", "#register-form", function (event) {
   event.preventDefault();
 
   const name = $("#register-name").val();
+  const phone = $("#register-phone").val();
   const email = $("#register-email").val();
   const password = $("#register-password").val();
   const userType = $("#user-type").val();
   const userSubtype = $("#user-subtype").val();
-  const ine = $("#talachero-ine").val();
+  const ine = userType === "talachero" ? $("#talachero-ine").val() : null;
+  const photo = ""; // Placeholder para la imagen
 
   if (!userType || !userSubtype) {
     alert("Por favor selecciona un tipo y subtipo de usuario.");
@@ -72,13 +74,28 @@ $(document).on("submit", "#register-form", function (event) {
     return;
   }
 
-  const newUser = { name, email, password, userType, userSubtype, ine };
+  const newUser = {
+    name,
+    phone,
+    email,
+    password,
+    userType,
+    userSubtype,
+    ine,
+    photo,
+    services: [],
+    rating: 0,
+    reviews: 0
+  };
+
   users.push(newUser);
   saveUsers(users);
 
   alert("Cuenta creada con éxito.");
   loginUser(newUser); // Inicia sesión automáticamente
 });
+
+
 
 // Manejar el envío del formulario de inicio de sesión
 $(document).on("submit", "#login-form", function (event) {
@@ -103,11 +120,17 @@ function loginUser(user) {
   localStorage.setItem("activeSession", JSON.stringify(user));
   alert(`Bienvenido, ${user.name}!`);
 
-  updateNavbarForSession(); // Actualizar el navbar
-  loadPage("user.html"); // Redirigir a la página principal del usuario
+  // Redirigir según el tipo de usuario y actualizar el navbar
+  if (user.userType === "usuario") {
+    updateNavbarForUser();
+    window.location.href = "index.html"; // Redirigir a la página del usuario
+  } else if (user.userType === "talachero") {
+    updateNavbarForTalachero();
+    window.location.href = "index.html"; // Redirigir a la página del talachero
+  }
 }
 
-// Funciones auxiliares para localStorage
+// Funciones auxiliares para LocalStorage
 function getUsers() {
   const users = localStorage.getItem("users");
   return users ? JSON.parse(users) : [];

@@ -1,18 +1,23 @@
 $(document).ready(function () {
   // Verificar si hay una sesión activa
-  const activeSession = localStorage.getItem("activeSession");
+  const activeSession = JSON.parse(localStorage.getItem("activeSession"));
 
   if (activeSession) {
-    // Si hay sesión activa, cargar la página principal del usuario
-    loadPage("user.html");
-    updateNavbarForSession();
+    // Redirigir según el tipo de usuario
+    if (activeSession.userType === "usuario") {
+      loadPage("user.html");
+      updateNavbarForUser();
+    } else if (activeSession.userType === "talachero") {
+      loadPage("mecanico.html");
+      updateNavbarForTalachero();
+    }
   } else {
     // Si no hay sesión activa, cargar el inicio
     loadPage("home.html");
     updateNavbarForNoSession();
   }
 
-  // Evento para cerrar sesión
+  // Evento para cerrar sesión desde el navbar
   $(document).on("click", "#logout", function () {
     localStorage.removeItem("activeSession"); // Eliminar sesión
     alert("Has cerrado sesión.");
@@ -27,11 +32,28 @@ $(document).ready(function () {
   });
 });
 
-// Actualizar el navbar cuando hay sesión activa
-function updateNavbarForSession() {
+// Actualizar el navbar para usuarios
+function updateNavbarForUser() {
   $("#session-options").html(`
     <li class="nav-item">
       <a class="nav-link" href="#" data-page="user.html">Pide un servicio</a>
+    </li>
+    <li class="nav-item dropdown">
+      <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        Mi Cuenta
+      </a>
+      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+        <li><a class="dropdown-item" href="#" id="logout">Cerrar Sesión</a></li>
+      </ul>
+    </li>
+  `);
+}
+
+// Actualizar el navbar para talacheros/mecánicos
+function updateNavbarForTalachero() {
+  $("#session-options").html(`
+    <li class="nav-item">
+      <a class="nav-link" href="#" data-page="mecanico.html">Panel de Talachero</a>
     </li>
     <li class="nav-item dropdown">
       <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -63,6 +85,8 @@ function loadPage(page) {
       // Ejecutar scripts específicos si son necesarios
       if (page === "user.html") {
         loadUserScript();
+      } else if (page === "mecanico.html") {
+        loadMecanicoScript();
       }
     })
     .catch((error) => console.error("Error al cargar la página:", error));
@@ -72,5 +96,12 @@ function loadPage(page) {
 function loadUserScript() {
   const script = document.createElement("script");
   script.src = "js/user.js";
+  document.body.appendChild(script);
+}
+
+// Cargar el script de talachero/mecánico dinámicamente
+function loadMecanicoScript() {
+  const script = document.createElement("script");
+  script.src = "js/mecanico.js";
   document.body.appendChild(script);
 }

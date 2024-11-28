@@ -1,0 +1,13 @@
+/* Estilos personalizados para el panel del talachero */
+body {
+    background-color: #f8f9fa;
+  }
+  
+  #service-list .card {
+    border: 1px solid #ddd;
+  }
+  
+  #request-list .card {
+    border: 1px solid #ddd;
+  }
+  

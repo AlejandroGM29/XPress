@@ -12,8 +12,8 @@
   <div class="row mx-0">
     <!-- Columna izquierda -->
     <div class="col-md-6 d-flex flex-column justify-content-center align-items-start p-4 bg-light">
-      <h2 class="mb-3 fw-bold text-primary">No te preocupes,</h2>
-      <p class="mb-4">Solo sigue los siguientes pasos:</p>
+      <h2 class="mb-3 fw-bold">No te preocupes,</h2>
+      <h2 class="mb-3 fw-bold">Solo sigue los siguientes pasos:</h2>
       <ul class="steps-list list-unstyled">
         <li><i class="bi bi-person-circle me-2"></i> Registro</li>
         <li><i class="bi bi-clipboard-check me-2"></i> Selección de servicio</li>
@@ -54,6 +54,10 @@
                 <input type="text" class="form-control" id="register-name" placeholder="Nombre Completo" required>
               </div>
               <div class="mb-3">
+                <label for="register-phone" class="form-label">Número Telefónico</label>
+                <input type="tel" class="form-control" id="register-phone" placeholder="Número Telefónico" required>
+              </div>
+              <div class="mb-3">
                 <label for="register-email" class="form-label">Correo Electrónico</label>
                 <input type="email" class="form-control" id="register-email" placeholder="Correo Electrónico" required>
               </div>
@@ -76,6 +80,10 @@
               <div class="mb-3">
                 <label for="talachero-ine" class="form-label">INE (solo talacheros)</label>
                 <input type="text" id="talachero-ine" class="form-control" placeholder="INE" readonly>
+              </div>
+              <div class="mb-3">
+                <label for="register-photo" class="form-label">Foto</label>
+                <input type="file" class="form-control" id="register-photo" accept="image/*">
               </div>
               <button type="submit" class="btn btn-success w-100">Crear Cuenta</button>
               <p class="text-center mt-3">
