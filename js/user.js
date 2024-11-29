@@ -1,22 +1,39 @@
-$(document).ready(function () {
+// Firebase imports
+import { database } from "./firebase-config.js";
+import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+export function initUserPage() {
+  console.log("Inicializando la página del usuario...");
+
+  // Variables globales
   let talacheros = [];
   let selectedType = "";
 
-  // Cargar Talacheros/Mecánicos desde LocalStorage y helper
+  // Cargar Talacheros/Mecánicos desde Firebase, LocalStorage y helper
   async function loadTalacheros() {
     try {
       // Obtener usuarios de LocalStorage
       const users = getUsersFromLocalStorage();
-      // Filtrar solo los talacheros y mecánicos
-      const localTalacheros = users.filter(
-        (user) => user.userType === "talachero"
-      );
-      // Obtener datos del helper
-      const response = await fetch("helpers/talacheros.json");
-      const helperTalacheros = await response.json();
+      const localTalacheros = users.filter((user) => user.userType === "talachero");
 
-      // Combinar ambas fuentes
-      talacheros = [...localTalacheros, ...helperTalacheros];
+      // Obtener datos del helper
+      const helperResponse = await fetch("helpers/talacheros.json");
+      const helperTalacheros = await helperResponse.json();
+
+      // Obtener datos desde Firebase Realtime Database
+      const snapshot = await get(ref(database, "users"));
+      const firebaseTalacheros = [];
+      if (snapshot.exists()) {
+        Object.values(snapshot.val()).forEach((user) => {
+          if (user.userType === "talachero") {
+            firebaseTalacheros.push(user);
+          }
+        });
+      }
+
+      // Combinar todas las fuentes
+      talacheros = [...localTalacheros, ...helperTalacheros, ...firebaseTalacheros];
+      console.log("Talacheros cargados:", talacheros);
     } catch (error) {
       console.error("Error al cargar los datos:", error);
     }
@@ -30,9 +47,7 @@ $(document).ready(function () {
 
   // Mostrar lista de Talacheros/Mecánicos
   function renderTalacheros(type) {
-    const filtered = talacheros.filter(
-      (t) => t.userSubtype === type && t.userType
-    );
+    const filtered = talacheros.filter((t) => t.userSubtype === type && t.userType);
     const container = $("#talacheros-list");
 
     const sectionTitle =
@@ -57,7 +72,9 @@ $(document).ready(function () {
             talachero.photo || "./img/team/person.png"
           }" class="list-img me-3" alt="${talachero.name}">
           <div class="list-content">
-            <p><strong>${talachero.name}</strong> ${talachero.rating || "N/A"} ⭐ (${talachero.reviews || 0} reseñas)</p>
+            <p><strong>${talachero.name}</strong> ${talachero.rating || "N/A"} ⭐ (${
+          talachero.reviews || 0
+        } reseñas)</p>
             <ul class="services-list mb-2">
               ${servicesHtml}
             </ul>
@@ -124,6 +141,7 @@ $(document).ready(function () {
     );
   }
 
+  // Eventos de interacción
   $(document).on("click", ".select-type", function () {
     selectedType = $(this).data("type");
     renderTalacheros(selectedType);
@@ -153,5 +171,6 @@ $(document).ready(function () {
     });
   });
 
+  // Inicializar datos
   loadTalacheros();
-});
+}

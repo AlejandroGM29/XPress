@@ -1,23 +1,64 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+import { auth, database } from "./firebase-config.js";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut,
+} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import { get, ref, set } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-// Configuración de Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyC8fB1guZMUlsBji1jyjNip_PZDleCSfOw",
-  authDomain: "rxpress-68971.firebaseapp.com",
-  databaseURL: "https://rxpress-68971-default-rtdb.firebaseio.com",
-  projectId: "rxpress-68971",
-  storageBucket: "rxpress-68971.appspot.com",
-  messagingSenderId: "909643513444",
-  appId: "1:909643513444:web:4c32c66cdb52abf2f1e971",
-  measurementId: "G-F4XXC69DJV"
-};
+// Bandera para evitar alertas repetidas en onAuthStateChanged
+let sessionInitialized = false;
 
-// Inicializar Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const database = getDatabase(app);
+// Manejar el flip entre Login y Crear Cuenta
+$(document).on("click", ".toggle-form", function () {
+  $(".form-flip-container").toggleClass("flipped");
+  adjustFormHeight();
+});
+
+// Ajustar la altura del contenedor dinámicamente
+function adjustFormHeight() {
+  const $activeForm = $(".form-flip-container .form-box:visible");
+  if ($activeForm.length) {
+    $(".form-flip-container").css("height", $activeForm.outerHeight());
+  }
+}
+
+// Ajustar la altura al cargar la página
+$(document).ready(function () {
+  $(".form-flip-container").removeClass("flipped");
+  adjustFormHeight();
+});
+
+// Manejar el cambio de Tipo de Usuario
+$(document).on("change", "#user-type", function () {
+  const userType = $(this).val();
+  const $subtypeFields = $("#user-subtype-fields");
+  const $ineField = $("#talachero-ine");
+
+  $subtypeFields.hide();
+  $("#user-subtype").html(`<option value="">Selecciona...</option>`);
+  $ineField.val("").attr("readonly", true);
+
+  if (userType === "usuario") {
+    $subtypeFields.show();
+    $("#user-subtype").html(`
+      <option value="">Selecciona...</option>
+      <option value="camionero">Camionero</option>
+      <option value="ordinario">Ordinario</option>
+    `);
+  } else if (userType === "talachero") {
+    $subtypeFields.show();
+    $("#user-subtype").html(`
+      <option value="">Selecciona...</option>
+      <option value="talachero">Talachero/Vulca</option>
+      <option value="mecanico">Mecánico</option>
+    `);
+    $ineField.attr("readonly", false);
+  }
+
+  adjustFormHeight();
+});
 
 // Manejar el envío del formulario de registro
 $(document).on("submit", "#register-form", async function (event) {
@@ -37,12 +78,15 @@ $(document).on("submit", "#register-form", async function (event) {
   }
 
   try {
-    // Crear usuario en Firebase Authentication
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const userId = userCredential.user.uid;
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+    const userId = userCredential.user.uid; // Obtener el UID
 
-    // Guardar datos adicionales en Firebase Realtime Database
-    await set(ref(database, `users/${userId}`), {
+    // Crear el objeto del usuario con UID incluido
+    const userData = {
       name,
       phone,
       email,
@@ -52,11 +96,14 @@ $(document).on("submit", "#register-form", async function (event) {
       photo: "",
       services: [],
       rating: 0,
-      reviews: 0
-    });
+      reviews: 0,
+      uid: userId, // Guardar UID como campo en la base de datos
+    };
 
+    // Guardar en la base de datos
+    await set(ref(database, `users/${userId}`), userData);
     alert("Cuenta creada con éxito.");
-    loginUser(userCredential.user); // Inicia sesión automáticamente
+    loginUser(userData); // Pasar el objeto completo con UID para localStorage
   } catch (error) {
     console.error("Error al registrar usuario:", error);
     alert("Error al registrar usuario: " + error.message);
@@ -71,15 +118,14 @@ $(document).on("submit", "#login-form", async function (event) {
   const password = $("#login-password").val();
 
   try {
-    // Iniciar sesión en Firebase Authentication
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const userId = userCredential.user.uid;
+    const userId = userCredential.user.uid; // Obtener el UID
 
-    // Obtener datos del usuario desde Firebase Realtime Database
+    // Consultar los datos del usuario desde la base de datos
     const snapshot = await get(ref(database, `users/${userId}`));
     if (snapshot.exists()) {
       const userData = snapshot.val();
-      loginUser(userData); // Manejar sesión del usuario
+      loginUser(userData); // Pasar el objeto completo con UID incluido
     } else {
       throw new Error("No se encontraron datos del usuario.");
     }
@@ -89,31 +135,52 @@ $(document).on("submit", "#login-form", async function (event) {
   }
 });
 
+// Manejar sesión activa desde Firebase
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    if (!sessionInitialized) {
+      sessionInitialized = true;
+      const snapshot = await get(ref(database, `users/${user.uid}`));
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        if (!localStorage.getItem("activeSession")) {
+          loginUser(userData);
+        }
+      }
+    }
+  } else {
+    if (sessionInitialized) {
+      sessionInitialized = false;
+      console.log("No hay usuario autenticado.");
+      localStorage.removeItem("activeSession");
+    }
+  }
+});
+
 // Función para manejar la sesión del usuario
 function loginUser(user) {
-  localStorage.setItem("activeSession", JSON.stringify(user));
-  alert(`Bienvenido, ${user.name}!`);
+  if (!localStorage.getItem("activeSession")) {
+    localStorage.setItem("activeSession", JSON.stringify(user)); // Guardar el objeto con UID incluido
+    alert(`Bienvenido, ${user.name}!`);
+  }
 
   // Redirigir según el tipo de usuario
   if (user.userType === "usuario") {
-    updateNavbarForUser();
-    window.location.href = "user.html"; // Redirigir a la página del usuario
+    window.location.href = "index.html"; // Página principal para usuarios
   } else if (user.userType === "talachero") {
-    updateNavbarForTalachero();
-    window.location.href = "mecanico.html"; // Redirigir a la página del talachero
+    window.location.href = "index.html"; // Página principal para talacheros
   }
 }
 
-// Manejar sesión activa
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    // Usuario autenticado, cargar datos
-    const snapshot = await get(ref(database, `users/${user.uid}`));
-    if (snapshot.exists()) {
-      const userData = snapshot.val();
-      loginUser(userData);
-    }
-  } else {
-    console.log("No hay usuario autenticado.");
+// Manejar cierre de sesión
+$(document).on("click", "#logout", async function () {
+  try {
+    await signOut(auth);
+    localStorage.removeItem("activeSession");
+    alert("Has cerrado sesión.");
+    window.location.href = "index.html";
+  } catch (error) {
+    console.error("Error al cerrar sesión:", error);
+    alert("Error al cerrar sesión: " + error.message);
   }
 });

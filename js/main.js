@@ -1,64 +1,59 @@
-
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyC8fB1guZMUlsBji1jyjNip_PZDleCSfOw",
-  authDomain: "tu-proyecto.firebaseapp.com",
-  databaseURL: "https://tu-proyecto.firebaseio.com",
-  projectId: "rxpress-68971",
-  storageBucket: "tu-proyecto.appspot.com",
-  messagingSenderId: "tu-messaging-sender-id",
-  appId: "tu-app-id"
-};
-
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
-const auth = firebase.auth();
-
+import { auth, database } from "./firebase-config.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
 $(document).ready(function () {
-  // Verificar si hay una sesión activa
+  // Verificar si hay una sesión activa en LocalStorage
   const activeSession = JSON.parse(localStorage.getItem("activeSession"));
 
   if (activeSession) {
     // Redirigir según el tipo de usuario
     if (activeSession.userType === "usuario") {
       loadPage("user.html");
-      updateNavbarForUser();
+      updateNavbarForUser(activeSession.name);
     } else if (activeSession.userType === "talachero") {
       loadPage("mecanico.html");
-      updateNavbarForTalachero();
+      updateNavbarForTalachero(activeSession.name);
     }
   } else {
-    // Si no hay sesión activa, cargar el inicio
+    // Si no hay sesión activa, cargar la página de inicio
     loadPage("home.html");
     updateNavbarForNoSession();
   }
 
   // Evento para cerrar sesión desde el navbar
-  $(document).on("click", "#logout", function () {
-    localStorage.removeItem("activeSession"); // Eliminar sesión
-    alert("Has cerrado sesión.");
-    location.reload(); // Recargar para reiniciar estado
+  $(document).on("click", "#logout", async function () {
+    try {
+      await signOut(auth);
+      localStorage.removeItem("activeSession"); // Eliminar la sesión del almacenamiento local
+      alert("Has cerrado sesión.");
+      updateNavbarForNoSession();
+      loadPage("home.html"); // Cargar la página de inicio
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+      alert("Error al cerrar sesión: " + error.message);
+    }
   });
 
   // Manejar navegación dinámica desde el navbar
   $(document).on("click", "a[data-page]", function (e) {
     e.preventDefault();
     const page = $(this).data("page");
-    loadPage(page);
+    if (page) {
+      loadPage(page);
+    }
   });
 });
 
 // Actualizar el navbar para usuarios
-function updateNavbarForUser() {
+function updateNavbarForUser(name) {
   $("#session-options").html(`
     <li class="nav-item">
       <a class="nav-link" href="#" data-page="user.html">Pide un servicio</a>
     </li>
     <li class="nav-item dropdown">
       <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-        Mi Cuenta
+        Mi Cuenta (${name})
       </a>
       <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
         <li><a class="dropdown-item" href="#" id="logout">Cerrar Sesión</a></li>
@@ -68,14 +63,14 @@ function updateNavbarForUser() {
 }
 
 // Actualizar el navbar para talacheros/mecánicos
-function updateNavbarForTalachero() {
+function updateNavbarForTalachero(name) {
   $("#session-options").html(`
     <li class="nav-item">
       <a class="nav-link" href="#" data-page="mecanico.html">Panel de Talachero</a>
     </li>
     <li class="nav-item dropdown">
       <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-        Mi Cuenta
+        Mi Cuenta (${name})
       </a>
       <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
         <li><a class="dropdown-item" href="#" id="logout">Cerrar Sesión</a></li>
@@ -88,7 +83,7 @@ function updateNavbarForTalachero() {
 function updateNavbarForNoSession() {
   $("#session-options").html(`
     <li class="nav-item">
-      <a class="btn btn-primary nav-link" href="#" data-page="login.html">Iniciar sesión</a>
+      <a class="nav-link" href="#" data-page="login.html">Iniciar sesión</a>
     </li>
   `);
 }
@@ -96,7 +91,12 @@ function updateNavbarForNoSession() {
 // Función para cargar dinámicamente el contenido de las páginas
 function loadPage(page) {
   fetch(`pages/${page}`)
-    .then((response) => response.text())
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Error al cargar la página: ${response.statusText}`);
+      }
+      return response.text();
+    })
     .then((html) => {
       document.getElementById("main-content").innerHTML = html;
 
@@ -107,19 +107,64 @@ function loadPage(page) {
         loadMecanicoScript();
       }
     })
-    .catch((error) => console.error("Error al cargar la página:", error));
+    .catch((error) => console.error(error));
 }
 
 // Cargar el script de usuario dinámicamente
 function loadUserScript() {
-  const script = document.createElement("script");
-  script.src = "js/user.js";
-  document.body.appendChild(script);
+  import("./user.js")
+    .then((module) => {
+      if (module.initUserPage) {
+        module.initUserPage();
+      } else {
+        console.error("La función initUserPage no está definida en el módulo user.js");
+      }
+    })
+    .catch((error) => {
+      console.error("Error al cargar el módulo user.js:", error);
+    });
 }
+
 
 // Cargar el script de talachero/mecánico dinámicamente
 function loadMecanicoScript() {
-  const script = document.createElement("script");
-  script.src = "js/mecanico.js";
-  document.body.appendChild(script);
+  import("./mecanico.js")
+    .then((module) => {
+      module.initMecanicoPage();
+    })
+    .catch((error) => console.error("Error al cargar el módulo mecanico.js:", error));
+}
+
+// Manejar sesión activa con Firebase
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    const snapshot = await get(ref(database, `users/${user.uid}`));
+    if (snapshot.exists()) {
+      const userData = snapshot.val();
+      if (!localStorage.getItem("activeSession")) {
+        loginUser(userData);
+      }
+    }
+  } else {
+    console.log("No hay usuario autenticado.");
+    localStorage.removeItem("activeSession");
+    updateNavbarForNoSession();
+    loadPage("home.html");
+  }
+});
+
+// Función para manejar la sesión del usuario
+function loginUser(user) {
+  if (!localStorage.getItem("activeSession")) {
+    localStorage.setItem("activeSession", JSON.stringify(user));
+    alert(`Bienvenido, ${user.name}!`);
+  }
+
+  if (user.userType === "usuario") {
+    loadPage("user.html");
+    updateNavbarForUser(user.name);
+  } else if (user.userType === "talachero") {
+    loadPage("mecanico.html");
+    updateNavbarForTalachero(user.name);
+  }
 }
