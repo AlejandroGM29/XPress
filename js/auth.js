@@ -1,56 +1,26 @@
-// Manejar el flip entre Login y Crear Cuenta
-$(document).on("click", ".toggle-form", function () {
-  $(".form-flip-container").toggleClass("flipped");
-  adjustFormHeight(); // Ajustar la altura después del flip
-});
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-// Ajustar la altura del contenedor dinámicamente
-function adjustFormHeight() {
-  const $activeForm = $(".form-flip-container .form-box:visible");
-  $(".form-flip-container").css("height", $activeForm.outerHeight());
-}
+// Configuración de Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyC8fB1guZMUlsBji1jyjNip_PZDleCSfOw",
+  authDomain: "rxpress-68971.firebaseapp.com",
+  databaseURL: "https://rxpress-68971-default-rtdb.firebaseio.com",
+  projectId: "rxpress-68971",
+  storageBucket: "rxpress-68971.appspot.com",
+  messagingSenderId: "909643513444",
+  appId: "1:909643513444:web:4c32c66cdb52abf2f1e971",
+  measurementId: "G-F4XXC69DJV"
+};
 
-// Ajustar la altura al cargar la página
-$(document).ready(function () {
-  $(".form-flip-container").removeClass("flipped"); // Forzar que siempre cargue en "Iniciar sesión"
-  adjustFormHeight(); // Ajustar la altura inicial
-});
-
-// Manejar el cambio de Tipo de Usuario
-$(document).on("change", "#user-type", function () {
-  const userType = $(this).val();
-  const $subtypeFields = $("#user-subtype-fields");
-  const $ineField = $("#talachero-ine");
-
-  // Limpiar subtipos y campos dinámicos
-  $subtypeFields.hide();
-  $("#user-subtype").html(`<option value="">Selecciona...</option>`);
-  $ineField.val("").attr("readonly", true); // INE siempre readonly inicialmente
-
-  if (userType === "usuario") {
-    // Actualizar subtipo para Usuario
-    $subtypeFields.show();
-    $("#user-subtype").html(`
-      <option value="">Selecciona...</option>
-      <option value="camionero">Camionero</option>
-      <option value="ordinario">Ordinario</option>
-    `);
-  } else if (userType === "talachero") {
-    // Actualizar subtipo para Talachero
-    $subtypeFields.show();
-    $("#user-subtype").html(`
-      <option value="">Selecciona...</option>
-      <option value="talachero">Talachero/Vulca</option>
-      <option value="mecanico">Mecánico</option>
-    `);
-    $ineField.attr("readonly", false); // Activar INE
-  }
-
-  adjustFormHeight(); // Ajustar la altura después de cambiar el tipo de usuario
-});
+// Inicializar Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const database = getDatabase(app);
 
 // Manejar el envío del formulario de registro
-$(document).on("submit", "#register-form", function (event) {
+$(document).on("submit", "#register-form", async function (event) {
   event.preventDefault();
 
   const name = $("#register-name").val();
@@ -60,82 +30,90 @@ $(document).on("submit", "#register-form", function (event) {
   const userType = $("#user-type").val();
   const userSubtype = $("#user-subtype").val();
   const ine = userType === "talachero" ? $("#talachero-ine").val() : null;
-  const photo = ""; // Placeholder para la imagen
 
   if (!userType || !userSubtype) {
     alert("Por favor selecciona un tipo y subtipo de usuario.");
     return;
   }
 
-  const users = getUsers();
+  try {
+    // Crear usuario en Firebase Authentication
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const userId = userCredential.user.uid;
 
-  if (users.some((user) => user.email === email)) {
-    alert("Este correo ya está registrado.");
-    return;
+    // Guardar datos adicionales en Firebase Realtime Database
+    await set(ref(database, `users/${userId}`), {
+      name,
+      phone,
+      email,
+      userType,
+      userSubtype,
+      ine,
+      photo: "",
+      services: [],
+      rating: 0,
+      reviews: 0
+    });
+
+    alert("Cuenta creada con éxito.");
+    loginUser(userCredential.user); // Inicia sesión automáticamente
+  } catch (error) {
+    console.error("Error al registrar usuario:", error);
+    alert("Error al registrar usuario: " + error.message);
   }
-
-  const newUser = {
-    name,
-    phone,
-    email,
-    password,
-    userType,
-    userSubtype,
-    ine,
-    photo,
-    services: [],
-    rating: 0,
-    reviews: 0
-  };
-
-  users.push(newUser);
-  saveUsers(users);
-
-  alert("Cuenta creada con éxito.");
-  loginUser(newUser); // Inicia sesión automáticamente
 });
 
-
-
 // Manejar el envío del formulario de inicio de sesión
-$(document).on("submit", "#login-form", function (event) {
+$(document).on("submit", "#login-form", async function (event) {
   event.preventDefault();
 
   const email = $("#login-email").val();
   const password = $("#login-password").val();
 
-  const users = getUsers();
-  const user = users.find((u) => u.email === email && u.password === password);
+  try {
+    // Iniciar sesión en Firebase Authentication
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const userId = userCredential.user.uid;
 
-  if (!user) {
-    alert("Usuario o contraseña incorrectos.");
-    return;
+    // Obtener datos del usuario desde Firebase Realtime Database
+    const snapshot = await get(ref(database, `users/${userId}`));
+    if (snapshot.exists()) {
+      const userData = snapshot.val();
+      loginUser(userData); // Manejar sesión del usuario
+    } else {
+      throw new Error("No se encontraron datos del usuario.");
+    }
+  } catch (error) {
+    console.error("Error al iniciar sesión:", error);
+    alert("Error al iniciar sesión: " + error.message);
   }
-
-  loginUser(user); // Inicia sesión
 });
 
-// Función para iniciar sesión y redirigir
+// Función para manejar la sesión del usuario
 function loginUser(user) {
   localStorage.setItem("activeSession", JSON.stringify(user));
   alert(`Bienvenido, ${user.name}!`);
 
-  // Redirigir según el tipo de usuario y actualizar el navbar
+  // Redirigir según el tipo de usuario
   if (user.userType === "usuario") {
     updateNavbarForUser();
-    window.location.href = "index.html"; // Redirigir a la página del usuario
+    window.location.href = "user.html"; // Redirigir a la página del usuario
   } else if (user.userType === "talachero") {
     updateNavbarForTalachero();
-    window.location.href = "index.html"; // Redirigir a la página del talachero
+    window.location.href = "mecanico.html"; // Redirigir a la página del talachero
   }
 }
 
-// Funciones auxiliares para LocalStorage
-function getUsers() {
-  const users = localStorage.getItem("users");
-  return users ? JSON.parse(users) : [];
-}
-
-function saveUsers(users) {
-  localStorage.setItem("users", JSON.stringify(users));
-}
+// Manejar sesión activa
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    // Usuario autenticado, cargar datos
+    const snapshot = await get(ref(database, `users/${user.uid}`));
+    if (snapshot.exists()) {
+      const userData = snapshot.val();
+      loginUser(userData);
+    }
+  } else {
+    console.log("No hay usuario autenticado.");
+  }
+});

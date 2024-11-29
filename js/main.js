@@ -1,3 +1,21 @@
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyC8fB1guZMUlsBji1jyjNip_PZDleCSfOw",
+  authDomain: "tu-proyecto.firebaseapp.com",
+  databaseURL: "https://tu-proyecto.firebaseio.com",
+  projectId: "rxpress-68971",
+  storageBucket: "tu-proyecto.appspot.com",
+  messagingSenderId: "tu-messaging-sender-id",
+  appId: "tu-app-id"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+const auth = firebase.auth();
+
+
 $(document).ready(function () {
   // Verificar si hay una sesión activa
   const activeSession = JSON.parse(localStorage.getItem("activeSession"));

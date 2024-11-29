@@ -7,12 +7,10 @@ $(document).ready(function () {
     try {
       // Obtener usuarios de LocalStorage
       const users = getUsersFromLocalStorage();
-      console.log(users);
       // Filtrar solo los talacheros y mecánicos
       const localTalacheros = users.filter(
         (user) => user.userType === "talachero"
       );
-      console.log(localTalacheros);
       // Obtener datos del helper
       const response = await fetch("helpers/talacheros.json");
       const helperTalacheros = await response.json();
@@ -57,14 +55,12 @@ $(document).ready(function () {
         <div class="list-item d-flex align-items-center" data-id="${talachero.email}" style="display: none;">
           <img src="${
             talachero.photo || "./img/team/person.png"
-          }" class="list-img" alt="${talachero.name}">
-          <div class="list-content ms-3">
-            <ul class="services-list mb-2 mt-2">
+          }" class="list-img me-3" alt="${talachero.name}">
+          <div class="list-content">
+            <p><strong>${talachero.name}</strong> ${talachero.rating || "N/A"} ⭐ (${talachero.reviews || 0} reseñas)</p>
+            <ul class="services-list mb-2">
               ${servicesHtml}
             </ul>
-            <p><strong>${talachero.name}  </strong> ${talachero.rating || "N/A"} ⭐ (${
-          talachero.reviews || 0
-        } reseñas)</p>
           </div>
         </div>`;
         container.append(listItem);
@@ -103,9 +99,7 @@ $(document).ready(function () {
           }" class="list-img" alt="${talachero.name}">
           <div class="list-content ms-3">
             <h5>${talachero.name}</h5>
-            <p><strong>Contacto:</strong> ${talachero.phone} | ${
-          talachero.email
-        }</p>
+            <p><strong>Contacto:</strong> ${talachero.phone} | ${talachero.email}</p>
           </div>
         </div>
       `);
@@ -132,7 +126,6 @@ $(document).ready(function () {
 
   $(document).on("click", ".select-type", function () {
     selectedType = $(this).data("type");
-    console.log(selectedType);
     renderTalacheros(selectedType);
   });
 
