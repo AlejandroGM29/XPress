@@ -95,3 +95,20 @@ button:disabled {
     background-color: #ccc;
     color: #666;
 }
+.user-message {
+    background-color: #d4edda;
+    color: #155724;
+    /* Otros estilos */
+}
+
+.talachero-message {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    /* Otros estilos */
+}
+
+.system-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    /* Otros estilos */
+}

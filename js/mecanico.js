@@ -1,290 +1,294 @@
 import { database } from "./firebase-config.js";
-import { ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
-import { handleLogout } from "./auth.js"; // Importar la función de logout centralizada
+import { ref, get, set, update, onValue, push } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-// Inicializar la página del talachero/mecánico
+let isMecanicoPageInitialized = false;
+let requestsUnsubscribe = null; // Mover aquí la variable
+
 export function initMecanicoPage() {
-  const activeSession = JSON.parse(localStorage.getItem("activeSession"));
+    if (isMecanicoPageInitialized) {
+        return;
+    }
+    isMecanicoPageInitialized = true;
 
-  if (!activeSession || activeSession.userType !== "talachero") {
-    alert("Debes iniciar sesión como talachero.");
-    window.location.href = "login.html";
-    return;
-  }
-  console.log("HOLA?")
-  // Configurar datos del talachero
-  document.getElementById("talachero-name").textContent =
-    activeSession.name || "Talachero";
+    const activeSession = JSON.parse(localStorage.getItem("activeSession"));
 
-  // Cargar servicios y solicitudes
-  loadServices(activeSession.uid);
-  loadRequests(activeSession.uid);
+    if (!activeSession || activeSession.userType !== "talachero") {
+        alert("Debes iniciar sesión como talachero.");
+        loadPage("login.html");
+        return;
+    }
 
-  setupAddService(activeSession.uid); // Configurar botón de agregar servicio
-  setupToggleActive(activeSession.uid); // Configurar botón de estado activo/inactivo
+    $("#talachero-name").text(activeSession.name || "Talachero");
+
+    loadServices(activeSession.uid);
+    loadRequests(activeSession.uid);
+
+    setupAddService(activeSession.uid);
+    setupToggleActive(activeSession.uid);
 }
 
-// Cargar solicitudes en la pestaña de solicitudes
 function loadRequests(talacheroId) {
-  const requestsRef = ref(database, `chats`);
-  const requestList = document.getElementById("request-list");
+    const requestsRef = ref(database, `chats`);
+    const requestList = $("#request-list");
 
-  onValue(requestsRef, async (snapshot) => {
-    requestList.innerHTML = "";
+    // Si hay un listener anterior, lo desuscribimos
+    if (requestsUnsubscribe) {
+        requestsUnsubscribe();
+    }
 
-    if (snapshot.exists()) {
-      const chats = snapshot.val();
+    // Registramos el nuevo listener y almacenamos la función de desuscripción
+    requestsUnsubscribe = onValue(requestsRef, async (snapshot) => {
+        requestList.empty();
 
-      const pendingRequests = Object.entries(chats).filter(
-        ([chatId, chatData]) =>
-          chatData.talacheroId === talacheroId && chatData.status === "waiting"
-      );
+        if (snapshot.exists()) {
+            const chats = snapshot.val();
 
-      if (pendingRequests.length === 0) {
-        requestList.innerHTML = "<p>No tienes solicitudes pendientes.</p>";
-        return;
-      }
+            const pendingRequests = Object.entries(chats).filter(
+                ([chatId, chatData]) =>
+                    chatData.talacheroId === talacheroId && chatData.status === "waiting"
+            );
 
-      for (const [chatId, chatData] of pendingRequests) {
-        // Obtener información del sender
-        const senderSnapshot = await get(ref(database, `users/${chatData.sender}`));
-        if (senderSnapshot.exists()) {
-          const senderData = senderSnapshot.val();
-          chatData.userName = senderData.name || "Usuario desconocido";
-          chatData.userPhoto = senderData.photo || "./img/team/person.png";
+            if (pendingRequests.length === 0) {
+                requestList.html("<p>No tienes solicitudes pendientes.</p>");
+                return;
+            }
+
+            for (const [chatId, chatData] of pendingRequests) {
+                // Obtener información del usuario
+                const senderSnapshot = await get(ref(database, `users/${chatData.sender}`));
+                if (senderSnapshot.exists()) {
+                    const senderData = senderSnapshot.val();
+                    chatData.userName = senderData.name || "Usuario desconocido";
+                    chatData.userPhoto = senderData.photo || "./img/team/person.png";
+                } else {
+                    chatData.userName = "Usuario desconocido";
+                    chatData.userPhoto = "./img/team/person.png";
+                }
+
+                // Obtener el primer mensaje para extraer serviceName y description
+                const messagesRef = ref(database, `chats/${chatId}/messages`);
+                const messagesSnapshot = await get(messagesRef);
+
+                if (messagesSnapshot.exists()) {
+                    const messages = messagesSnapshot.val();
+                    const messageEntries = Object.entries(messages);
+                    // Ordenar por timestamp
+                    messageEntries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+                    const initialMessage = messageEntries[0][1];
+
+                    chatData.serviceName = initialMessage.serviceName || "Servicio desconocido";
+                    chatData.description = initialMessage.description || "";
+                } else {
+                    chatData.serviceName = "Servicio desconocido";
+                    chatData.description = "";
+                }
+
+                renderRequestCard(chatId, chatData);
+            }
         } else {
-          chatData.userName = "Usuario desconocido";
-          chatData.userPhoto = "./img/team/person.png";
+            requestList.html("<p>No tienes solicitudes pendientes.</p>");
         }
-
-        // Renderizar tarjeta de solicitud
-        renderRequestCard(chatId, chatData);
-      }
-    } else {
-      requestList.innerHTML = "<p>No tienes solicitudes pendientes.</p>";
-    }
-  });
+    });
 }
 
-// Renderizar una tarjeta de solicitud
-// Renderizar una tarjeta de solicitud
 function renderRequestCard(chatId, chatData) {
-  const requestList = document.getElementById("request-list");
+    const requestList = $("#request-list");
 
-  const cardHtml = `
-    <div class="card mb-3" data-chat-id="${chatId}">
-      <div class="row g-0">
-        <!-- Sección izquierda: Información del cliente -->
-        <div class="col-md-9 d-flex align-items-center card-left" style="cursor: pointer;">
-          <img src="${chatData.userPhoto}" class="img-fluid rounded-start me-3" alt="${chatData.userName}" style="width: 100px; height: 100px; object-fit: cover;">
-          <div>
-            <h5 class="card-title">${chatData.serviceName}</h5>
-            <p class="card-text">${chatData.description}</p>
-            <p class="card-text"><small class="text-muted">De: ${chatData.userName}</small></p>
-          </div>
+    const cardHtml = `
+        <div class="card mb-3" data-chat-id="${chatId}">
+            <div class="row g-0">
+                <div class="col-md-9 d-flex align-items-center card-left" style="cursor: pointer;">
+                    <img src="${chatData.userPhoto}" class="img-fluid rounded-start me-3" alt="${chatData.userName}" style="width: 100px; height: 100px; object-fit: cover;">
+                    <div>
+                        <h5 class="card-title">${chatData.serviceName}</h5>
+                        <p class="card-text">${chatData.description}</p>
+                        <p class="card-text"><small class="text-muted">De: ${chatData.userName}</small></p>
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex align-items-center justify-content-center">
+                    <button class="btn btn-danger btn-lg reject-request w-75">Rechazar</button>
+                </div>
+            </div>
         </div>
+    `;
 
-        <!-- Sección derecha: Botón de rechazar -->
-        <div class="col-md-3 d-flex align-items-center justify-content-center">
-          <button class="btn btn-danger btn-lg reject-request w-75">Rechazar</button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  requestList.insertAdjacentHTML("beforeend", cardHtml);
-
-  // Configurar eventos para las acciones
-  setupRejectButton(chatId);
-  setupCardLeftClick(chatId);
+    requestList.append(cardHtml);
 }
 
-// Configurar evento para clic en la parte izquierda
-function setupCardLeftClick(chatId) {
-  const requestCardLeft = document.querySelector(`[data-chat-id="${chatId}"] .card-left`);
+// Usamos delegación de eventos para evitar múltiples bindings
+$(document).on('click', '.reject-request', function() {
+    const chatId = $(this).closest('[data-chat-id]').data('chat-id');
+    handleRequestAction(chatId, 'rejected');
+});
 
-  requestCardLeft.addEventListener("click", () => {
-    console.log(`Clicked on the left section of the card with chatId: ${chatId}`);
-  });
-}
+$(document).on('click', '.card-left', function() {
+    const chatId = $(this).closest('[data-chat-id]').data('chat-id');
+    localStorage.setItem('activeChat', chatId);
+    loadPage('chat.html');
+});
 
-// Configurar botón de rechazar
-function setupRejectButton(chatId) {
-  const requestCard = document.querySelector(`[data-chat-id="${chatId}"]`);
-  const rejectButton = requestCard.querySelector(".reject-request");
-
-  rejectButton.addEventListener("click", () => handleRequestAction(chatId, "rejected"));
-}
-
-// Manejar acciones sobre la solicitud
 async function handleRequestAction(chatId, action) {
-  const chatRef = ref(database, `chats/${chatId}`);
-  const userRef = ref(database, `users`);
+    const chatRef = ref(database, `chats/${chatId}`);
+    const messagesRef = ref(database, `chats/${chatId}/messages`);
 
-  try {
-    if (action === "rejected") {
-      const chatSnapshot = await get(chatRef);
-      if (chatSnapshot.exists()) {
-        const chatData = chatSnapshot.val();
-
-        // Liberar al usuario del `inChat`
-        await update(ref(database, `users/${chatData.sender}`), { inChat: null });
-
-        // Cambiar estado del chat
-        await update(chatRef, { status: "rejected" });
-        alert("Solicitud rechazada.");
-      }
-    }
-  } catch (error) {
-    console.error("Error al rechazar la solicitud:", error);
-    alert("Hubo un error al procesar la solicitud.");
-  }
-}
-
-
-// Cargar servicios del talachero desde Firebase
-async function loadServices(uid) {
-  try {
-    const servicesRef = ref(database, `users/${uid}/services`);
-    const snapshot = await get(servicesRef);
-
-    if (snapshot.exists()) {
-      const services = snapshot.val();
-      renderServices(services); // Renderizar servicios con IDs numéricos
-    } else {
-      console.log("No se encontraron servicios para este usuario.");
-      renderServices([]); // Renderizar sin servicios
-    }
-  } catch (error) {
-    console.error("Error al cargar servicios:", error);
-  }
-}
-
-// Renderizar la lista de servicios en la interfaz
-function renderServices(services) {
-  const serviceList = document.getElementById("service-list");
-  serviceList.innerHTML = "";
-
-  if (Object.keys(services).length === 0) {
-    serviceList.innerHTML = "<p>No tienes servicios registrados.</p>";
-    return;
-  }
-  console.log(services)
-  Object.entries(services).forEach(([id, service]) => {
-    const serviceItem = `
-      <div class="card mb-2">
-        <div class="card-body">
-          <h5>${service.name}</h5>
-          <p>${service.description}</p>
-          <p><strong>Precio:</strong> $${service.price}</p>
-          <button class="btn btn-danger btn-sm remove-service" data-id="${id}">Eliminar</button>
-        </div>
-      </div>`;
-    serviceList.insertAdjacentHTML("beforeend", serviceItem);
-  });
-
-  setupRemoveServiceButtons(); // Configurar botones para eliminar servicios
-}
-
-// Configurar el botón de agregar servicio
-function setupAddService(uid) {
-  const addServiceButton = document.getElementById("add-service");
-  addServiceButton.addEventListener("click", async () => {
-    const name = prompt("Nombre del servicio:");
-    const description = prompt("Descripción del servicio:");
-    const price = prompt("Precio del servicio:");
-
-    if (name && description && price) {
-      try {
-        const servicesRef = ref(database, `users/${uid}/services`);
-        const snapshot = await get(servicesRef);
-        const services = snapshot.exists() ? snapshot.val() : {};
-
-        // Generar el próximo ID numérico
-        const nextId = Object.keys(services).length
-          ? Math.max(...Object.keys(services).map(Number)) + 1
-          : 1;
-
-        // Agregar el servicio con ID numérico
-        services[nextId] = { name, description, price };
-        await set(servicesRef, services);
-
-        alert("Servicio agregado con éxito.");
-        loadServices(uid); // Recargar la lista de servicios
-      } catch (error) {
-        console.error("Error al agregar el servicio:", error);
-        alert("Error al agregar el servicio.");
-      }
-    }
-  });
-}
-
-// Configurar botón para cambiar estado activo/inactivo
-function setupToggleActive(uid) {
-  const toggleActiveButton = document.getElementById("toggle-active");
-
-  // Obtener el estado inicial desde Firebase
-  get(ref(database, `users/${uid}`)).then((snapshot) => {
-    if (snapshot.exists()) {
-      const userData = snapshot.val();
-      toggleActiveButton.textContent = userData.isActive ? "Estar Inactivo" : "Estar Activo";
-    }
-  });
-
-  // Cambiar estado al hacer clic
-  toggleActiveButton.addEventListener("click", async () => {
     try {
-      const userRef = ref(database, `users/${uid}`);
-      const snapshot = await get(userRef);
+        if (action === "rejected") {
+            const chatSnapshot = await get(chatRef);
+            if (chatSnapshot.exists()) {
+                const chatData = chatSnapshot.val();
 
-      if (snapshot.exists()) {
-        const userData = snapshot.val();
-        const newState = !userData.isActive;
+                await update(ref(database, `users/${chatData.sender}`), { inChat: null });
+                await update(chatRef, { status: "rejected" });
 
-        // Actualizar el estado en Firebase
-        await update(userRef, { isActive: newState });
+                const rejectionMessage = {
+                    sender: "system",
+                    description: "El talachero ha rechazado la solicitud.",
+                    timestamp: Date.now(),
+                };
 
-        // Actualizar el botón en la interfaz
-        toggleActiveButton.textContent = newState ? "Estar Inactivo" : "Estar Activo";
-        alert(`Tu estado ahora es: ${newState ? "Activo" : "Inactivo"}`);
-      }
+                await push(messagesRef, rejectionMessage);
+
+                alert("Solicitud rechazada y mensaje enviado al usuario.");
+            }
+        }
     } catch (error) {
-      console.error("Error al cambiar el estado:", error);
-      alert("Hubo un error al cambiar tu estado.");
+        console.error("Error al rechazar la solicitud:", error);
+        alert("Hubo un error al procesar la solicitud.");
     }
-  });
 }
 
-// Configurar botones para eliminar servicios
-function setupRemoveServiceButtons() {
-  const removeButtons = document.querySelectorAll(".remove-service");
-  removeButtons.forEach((button) => {
-    button.addEventListener("click", async (event) => {
-      const serviceId = event.target.getAttribute("data-id");
-      const activeSession = JSON.parse(localStorage.getItem("activeSession"));
+// Resto de tu código permanece igual...
 
-      if (!activeSession || !activeSession.uid) {
-        alert("Acceso no autorizado.");
-        return;
-      }
 
-      try {
-        const servicesRef = ref(database, `users/${activeSession.uid}/services`);
+
+async function loadServices(uid) {
+    try {
+        const servicesRef = ref(database, `users/${uid}/services`);
         const snapshot = await get(servicesRef);
 
         if (snapshot.exists()) {
-          const services = snapshot.val();
-          delete services[serviceId]; // Eliminar el servicio del objeto
-
-          // Actualizar servicios en Firebase
-          await set(servicesRef, services);
-          alert("Servicio eliminado con éxito.");
-          loadServices(activeSession.uid); // Recargar la lista de servicios
+            const services = snapshot.val();
+            renderServices(services);
+        } else {
+            renderServices([]);
         }
-      } catch (error) {
-        console.error("Error al eliminar el servicio:", error);
-        alert("Error al eliminar el servicio.");
-      }
+    } catch (error) {
+        console.error("Error al cargar servicios:", error);
+    }
+}
+
+function renderServices(services) {
+    const serviceList = $("#service-list");
+    serviceList.empty();
+
+    if (Object.keys(services).length === 0) {
+        serviceList.html("<p>No tienes servicios registrados.</p>");
+        return;
+    }
+
+    Object.entries(services).forEach(([id, service]) => {
+        const serviceItem = `
+          <div class="card mb-2">
+            <div class="card-body">
+              <h5>${service.name}</h5>
+              <p>${service.description}</p>
+              <p><strong>Precio:</strong> $${service.price}</p>
+              <button class="btn btn-danger btn-sm remove-service" data-id="${id}">Eliminar</button>
+            </div>
+          </div>`;
+        serviceList.append(serviceItem);
     });
-  });
+
+    setupRemoveServiceButtons();
+}
+
+function setupAddService(uid) {
+    const addServiceButton = $("#add-service");
+    addServiceButton.on("click", async () => {
+        const name = prompt("Nombre del servicio:");
+        const description = prompt("Descripción del servicio:");
+        const price = prompt("Precio del servicio:");
+
+        if (name && description && price) {
+            try {
+                const servicesRef = ref(database, `users/${uid}/services`);
+                const snapshot = await get(servicesRef);
+                const services = snapshot.exists() ? snapshot.val() : {};
+
+                const nextId = Object.keys(services).length
+                    ? Math.max(...Object.keys(services).map(Number)) + 1
+                    : 1;
+
+                services[nextId] = { name, description, price };
+                await set(servicesRef, services);
+
+                alert("Servicio agregado con éxito.");
+                loadServices(uid);
+            } catch (error) {
+                console.error("Error al agregar el servicio:", error);
+                alert("Error al agregar el servicio.");
+            }
+        }
+    });
+}
+
+function setupToggleActive(uid) {
+    const toggleActiveButton = $("#toggle-active");
+
+    get(ref(database, `users/${uid}`)).then((snapshot) => {
+        if (snapshot.exists()) {
+            const userData = snapshot.val();
+            toggleActiveButton.text(userData.isActive ? "Estar Inactivo" : "Estar Activo");
+        }
+    });
+
+    toggleActiveButton.on("click", async () => {
+        try {
+            const userRef = ref(database, `users/${uid}`);
+            const snapshot = await get(userRef);
+
+            if (snapshot.exists()) {
+                const userData = snapshot.val();
+                const newState = !userData.isActive;
+
+                await update(userRef, { isActive: newState });
+
+                toggleActiveButton.text(newState ? "Estar Inactivo" : "Estar Activo");
+                alert(`Tu estado ahora es: ${newState ? "Activo" : "Inactivo"}`);
+            }
+        } catch (error) {
+            console.error("Error al cambiar el estado:", error);
+            alert("Hubo un error al cambiar tu estado.");
+        }
+    });
+}
+
+function setupRemoveServiceButtons() {
+    const removeButtons = $(".remove-service");
+    removeButtons.on("click", async (event) => {
+        const serviceId = $(event.target).data("id");
+        const activeSession = JSON.parse(localStorage.getItem("activeSession"));
+
+        if (!activeSession || !activeSession.uid) {
+            alert("Acceso no autorizado.");
+            return;
+        }
+
+        try {
+            const servicesRef = ref(database, `users/${activeSession.uid}/services`);
+            const snapshot = await get(servicesRef);
+
+            if (snapshot.exists()) {
+                const services = snapshot.val();
+                delete services[serviceId];
+
+                await set(servicesRef, services);
+                alert("Servicio eliminado con éxito.");
+                loadServices(activeSession.uid);
+            }
+        } catch (error) {
+            console.error("Error al eliminar el servicio:", error);
+            alert("Error al eliminar el servicio.");
+        }
+    });
 }
