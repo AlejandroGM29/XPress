@@ -71,21 +71,42 @@ $(document).on("submit", "#register-form", async function (event) {
   const userType = $("#user-type").val();
   const userSubtype = $("#user-subtype").val();
   const ine = userType === "talachero" ? $("#talachero-ine").val() : null;
+  const photoInput = document.getElementById("register-photo").files[0];
 
   if (!userType || !userSubtype) {
     alert("Por favor selecciona un tipo y subtipo de usuario.");
     return;
   }
 
+  let photoUrl = ""; // Enlace de la foto subida
+
   try {
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+    // Si hay una foto, subirla a Cloudinary
+    if (photoInput) {
+      const formData = new FormData();
+      formData.append("file", photoInput);
+      formData.append("upload_preset", "unsigned_upload"); // Reemplaza con tu upload preset
+      formData.append("cloud_name", "dpydmw8qo"); // Reemplaza con tu cloud name
+
+      const response = await fetch("https://api.cloudinary.com/v1_1/dpydmw8qo/image/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.secure_url) {
+        photoUrl = result.secure_url; // Guardar el enlace de la foto
+      } else {
+        throw new Error("Error al subir la imagen.");
+      }
+    }
+
+    // Crear usuario en Firebase Auth
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const userId = userCredential.user.uid; // Obtener el UID
 
-    // Crear el objeto del usuario con UID incluido
+    // Crear el objeto del usuario con UID y URL de la foto
     const userData = {
       name,
       phone,
@@ -93,15 +114,16 @@ $(document).on("submit", "#register-form", async function (event) {
       userType,
       userSubtype,
       ine,
-      photo: "",
+      photo: photoUrl || "", // Si no hay foto, queda vacío
       services: [],
       rating: 0,
       reviews: 0,
       uid: userId, // Guardar UID como campo en la base de datos
     };
 
-    // Guardar en la base de datos
+    // Guardar el usuario en Firebase Realtime Database
     await set(ref(database, `users/${userId}`), userData);
+
     alert("Cuenta creada con éxito.");
     loginUser(userData); // Pasar el objeto completo con UID para localStorage
   } catch (error) {
@@ -172,8 +194,8 @@ function loginUser(user) {
   }
 }
 
-// Manejar cierre de sesión
-$(document).on("click", "#logout", async function () {
+// Exportar la función centralizada de logout
+export async function handleLogout() {
   try {
     await signOut(auth);
     localStorage.removeItem("activeSession");
@@ -181,6 +203,6 @@ $(document).on("click", "#logout", async function () {
     window.location.href = "index.html";
   } catch (error) {
     console.error("Error al cerrar sesión:", error);
-    alert("Error al cerrar sesión: " + error.message);
+    alert("Error al cerrar sesión.");
   }
-});
+}

@@ -4,6 +4,7 @@
     "name": "Juan Pérez",
     "userType": "talachero",
     "userSubtype": "talachero",
+    "isActive":true,
     "services": [
       {
         "name": "Reparación de llantas",

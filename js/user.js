@@ -7,47 +7,41 @@ export function initUserPage() {
 
   // Variables globales
   let talacheros = [];
-  let selectedType = "";
+  let selectedType = ""; // Inicializado vacío para evitar problemas
 
-  // Cargar Talacheros/Mecánicos desde Firebase, LocalStorage y helper
+  // Cargar Talacheros/Mecánicos desde Firebase
   async function loadTalacheros() {
     try {
-      // Obtener usuarios de LocalStorage
-      const users = getUsersFromLocalStorage();
-      const localTalacheros = users.filter((user) => user.userType === "talachero");
-
-      // Obtener datos del helper
-      const helperResponse = await fetch("helpers/talacheros.json");
-      const helperTalacheros = await helperResponse.json();
-
-      // Obtener datos desde Firebase Realtime Database
-      const snapshot = await get(ref(database, "users"));
-      const firebaseTalacheros = [];
-      if (snapshot.exists()) {
-        Object.values(snapshot.val()).forEach((user) => {
-          if (user.userType === "talachero") {
-            firebaseTalacheros.push(user);
-          }
-        });
+      if (!selectedType) {
+        console.log("No se ha seleccionado un tipo de usuario.");
+        return; // No cargar nada si no se selecciona un tipo
       }
 
-      // Combinar todas las fuentes
-      talacheros = [...localTalacheros, ...helperTalacheros, ...firebaseTalacheros];
-      console.log("Talacheros cargados:", talacheros);
-    } catch (error) {
-      console.error("Error al cargar los datos:", error);
-    }
-  }
+      // Reiniciar el arreglo global para evitar duplicados
+      talacheros = [];
 
-  // Obtener usuarios de LocalStorage
-  function getUsersFromLocalStorage() {
-    const users = localStorage.getItem("users");
-    return users ? JSON.parse(users) : [];
+      const talacherosRef = ref(database, "users");
+      const snapshot = await get(talacherosRef);
+
+      if (snapshot.exists()) {
+        talacheros = Object.values(snapshot.val()).filter(
+          (user) => user.userType === "talachero" && user.isActive !== false
+        );
+
+        renderTalacheros(selectedType);
+        console.log("Talacheros cargados:", talacheros);
+      } else {
+        console.log("No se encontraron talacheros en Firebase.");
+        renderTalacheros([]); // Renderizar una lista vacía
+      }
+    } catch (error) {
+      console.error("Error al cargar talacheros:", error);
+    }
   }
 
   // Mostrar lista de Talacheros/Mecánicos
   function renderTalacheros(type) {
-    const filtered = talacheros.filter((t) => t.userSubtype === type && t.userType);
+    const filtered = talacheros.filter((t) => t.userSubtype === type);
     const container = $("#talacheros-list");
 
     const sectionTitle =
@@ -67,7 +61,7 @@ export function initUserPage() {
           .join("");
 
         const listItem = `
-        <div class="list-item d-flex align-items-center" data-id="${talachero.email}" style="display: none;">
+        <div class="list-item d-flex align-items-center" data-id="${talachero.uid}" style="display: none;">
           <img src="${
             talachero.photo || "./img/team/person.png"
           }" class="list-img me-3" alt="${talachero.name}">
@@ -93,16 +87,34 @@ export function initUserPage() {
   }
 
   // Mostrar detalles del Talachero/Mecánico
-  function viewTalacheroDetails(email) {
-    const talachero = talacheros.find((t) => t.email === email);
+  async function viewTalacheroDetails(uid) {
+    const talachero = talacheros.find((t) => t.uid === uid);
     if (!talachero) return;
 
     const profileContainer = $("#talachero-profile");
     const servicesContainer = $("#services-list");
 
+    // Ocultar el botón de recargar talacheros
+    $("#reload-talacheros").hide();
+
     $("#back-to-list").show();
     $("#back-to-choice").hide();
     $("#profile-title").text(`Perfil de ${talachero.name}`);
+
+    try {
+      // Recargar los servicios más recientes desde Firebase
+      const servicesRef = ref(database, `users/${uid}/services`);
+      const snapshot = await get(servicesRef);
+
+      if (snapshot.exists()) {
+        talachero.services = Object.values(snapshot.val());
+      } else {
+        talachero.services = [];
+      }
+    } catch (error) {
+      console.error("Error al cargar servicios del talachero:", error);
+      talachero.services = [];
+    }
 
     $("#talacheros-list").hide(
       "slide",
@@ -141,27 +153,35 @@ export function initUserPage() {
     );
   }
 
-  // Eventos de interacción
-  $(document).on("click", ".select-type", function () {
-    selectedType = $(this).data("type");
-    renderTalacheros(selectedType);
-  });
-
-  $(document).on("click", ".list-item", function () {
-    const email = $(this).data("id");
-    viewTalacheroDetails(email);
-  });
-
-  $(document).on("click", "#back-to-list", function () {
+  $(document).on("click", "#back-to-list", async function () {
+    // Ocultar el perfil y recargar talacheros al volver a la lista
     $("#talachero-details").hide(
       "slide",
       { direction: "right" },
       500,
-      function () {
+      async function () {
+        $("#reload-talacheros").show(); // Mostrar botón de recarga
         $("#talacheros-list").show("slide", { direction: "left" }, 500);
         $("#back-to-choice").show();
+        await loadTalacheros(); // Recargar la lista de talacheros
       }
     );
+  });
+
+  // Configurar botón para recargar talacheros
+  $("#reload-talacheros").on("click", () => {
+    loadTalacheros();
+  });
+
+  // Eventos de interacción
+  $(document).on("click", ".select-type", function () {
+    selectedType = $(this).data("type"); // Asignar el tipo seleccionado
+    loadTalacheros(); // Cargar y renderizar al seleccionar tipo
+  });
+
+  $(document).on("click", ".list-item", function () {
+    const uid = $(this).data("id");
+    viewTalacheroDetails(uid);
   });
 
   $(document).on("click", "#back-to-choice", function () {
@@ -169,8 +189,9 @@ export function initUserPage() {
       $("#user-choice").show("slide", { direction: "left" }, 500);
       $("#talacheros-list").html("");
     });
+    selectedType = ""; // Restablecer el tipo al volver al menú principal
   });
 
-  // Inicializar datos
-  loadTalacheros();
+  // Inicializar sin cargar talacheros automáticamente
+  console.log("Esperando selección de tipo...");
 }

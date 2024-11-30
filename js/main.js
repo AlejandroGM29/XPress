@@ -1,6 +1,7 @@
 import { auth, database } from "./firebase-config.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+import { handleLogout } from "./auth.js"; // Importar la función centralizada de logout
 
 $(document).ready(function () {
   // Verificar si hay una sesión activa en LocalStorage
@@ -23,16 +24,7 @@ $(document).ready(function () {
 
   // Evento para cerrar sesión desde el navbar
   $(document).on("click", "#logout", async function () {
-    try {
-      await signOut(auth);
-      localStorage.removeItem("activeSession"); // Eliminar la sesión del almacenamiento local
-      alert("Has cerrado sesión.");
-      updateNavbarForNoSession();
-      loadPage("home.html"); // Cargar la página de inicio
-    } catch (error) {
-      console.error("Error al cerrar sesión:", error);
-      alert("Error al cerrar sesión: " + error.message);
-    }
+    await handleLogout(); // Usar la función centralizada de logout
   });
 
   // Manejar navegación dinámica desde el navbar
@@ -124,7 +116,6 @@ function loadUserScript() {
       console.error("Error al cargar el módulo user.js:", error);
     });
 }
-
 
 // Cargar el script de talachero/mecánico dinámicamente
 function loadMecanicoScript() {

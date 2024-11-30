@@ -1,5 +1,6 @@
-import { auth, database } from "./firebase-config.js";
+import { database } from "./firebase-config.js";
 import { ref, get, set, update } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+import { handleLogout } from "./auth.js"; // Importar la función de logout centralizada
 
 // Inicializar la página del talachero/mecánico
 export function initMecanicoPage() {
@@ -18,7 +19,7 @@ export function initMecanicoPage() {
   // Cargar servicios del talachero
   loadServices(activeSession.uid);
   setupAddService(activeSession.uid); // Configurar botón de agregar servicio
-  setupLogout(); // Configurar botón de cierre de sesión
+  setupToggleActive(activeSession.uid); // Configurar botón de estado activo/inactivo
 }
 
 // Cargar servicios del talachero desde Firebase
@@ -98,6 +99,42 @@ function setupAddService(uid) {
   });
 }
 
+// Configurar botón para cambiar estado activo/inactivo
+function setupToggleActive(uid) {
+  const toggleActiveButton = document.getElementById("toggle-active");
+
+  // Obtener el estado inicial desde Firebase
+  get(ref(database, `users/${uid}`)).then((snapshot) => {
+    if (snapshot.exists()) {
+      const userData = snapshot.val();
+      toggleActiveButton.textContent = userData.isActive ? "Estar Inactivo" : "Estar Activo";
+    }
+  });
+
+  // Cambiar estado al hacer clic
+  toggleActiveButton.addEventListener("click", async () => {
+    try {
+      const userRef = ref(database, `users/${uid}`);
+      const snapshot = await get(userRef);
+
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        const newState = !userData.isActive;
+
+        // Actualizar el estado en Firebase
+        await update(userRef, { isActive: newState });
+
+        // Actualizar el botón en la interfaz
+        toggleActiveButton.textContent = newState ? "Estar Inactivo" : "Estar Activo";
+        alert(`Tu estado ahora es: ${newState ? "Activo" : "Inactivo"}`);
+      }
+    } catch (error) {
+      console.error("Error al cambiar el estado:", error);
+      alert("Hubo un error al cambiar tu estado.");
+    }
+  });
+}
+
 // Configurar botones para eliminar servicios
 function setupRemoveServiceButtons() {
   const removeButtons = document.querySelectorAll(".remove-service");
@@ -141,14 +178,6 @@ function setupLogout() {
   logoutButton.replaceWith(newButton);
 
   newButton.addEventListener("click", async () => {
-    try {
-      await auth.signOut();
-      localStorage.removeItem("activeSession");
-      alert("Has cerrado sesión.");
-      window.location.href = "index.html";
-    } catch (error) {
-      console.error("Error al cerrar sesión:", error);
-      alert("Error al cerrar sesión.");
-    }
+    await handleLogout(); // Usar la función centralizada de logout
   });
 }
