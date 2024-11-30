@@ -1,0 +1,97 @@
+/* Estilo principal del chat */
+#chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f1f1f1;
+    margin-bottom: 10px;
+}
+
+.chat-inputs {
+    padding: 10px;
+    border-top: 1px solid #ddd;
+    background-color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Estilo para los pasos dinámicos */
+.chat-step {
+    margin-bottom: 15px;
+}
+
+.chat-step textarea,
+.chat-step select,
+.chat-step input[type="file"] {
+    width: 100%;
+    margin-top: 5px;
+}
+
+/* Previsualización de la foto */
+#problem-photo-preview {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    margin-top: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+}
+
+/* Mensajes del chat */
+.message {
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    max-width: 80%;
+    word-wrap: break-word;
+}
+
+.user-message {
+    align-self: flex-end;
+    background-color: #d1f7d6;
+}
+
+.talachero-message {
+    align-self: flex-start;
+    background-color: #f7d6d6;
+}
+
+/* Imágenes dentro de los mensajes */
+.message img {
+    width: 100%;
+    max-width: 200px;
+    height: auto;
+    margin-top: 10px;
+    border-radius: 8px;
+}
+
+/* Botones de navegación */
+#prev-step,
+#next-step {
+    margin-top: 10px;
+}
+
+#prev-step {
+    background-color: #ffc107;
+    color: #fff;
+}
+
+#next-step {
+    background-color: #007bff;
+    color: #fff;
+}
+
+/* Botón deshabilitado */
+button:disabled {
+    background-color: #ccc;
+    color: #666;
+}
