@@ -51,9 +51,11 @@ $(document).ready(function () {
 // Monitorear la propiedad inChat desde Firebase
 function monitorActiveChat(userId) {
   const userRef = ref(database, `users/${userId}/inChat`);
-
+  console.log()
   onValue(userRef, (snapshot) => {
     const activeChat = snapshot.val();
+    console.log(activeChat)
+    console.log("HOLA PERRO?")
     localStorage.setItem("activeChat", activeChat || ""); // Guardar en localStorage
 
     const activeSession = JSON.parse(localStorage.getItem("activeSession"));

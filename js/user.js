@@ -196,8 +196,9 @@ export function initUserPage() {
 
     $("#confirmChat").on("click", async function () {
       localStorage.setItem("selectedServiceId", serviceId);
-      localStorage.setItem("activeChat", talacheroId);
-
+      console.log(talacheroId)
+      /* localStorage.setItem("activeChat", talacheroId); */
+   
       /* const userRef = ref(database, `users/${activeSession.uid}/inChat`);
       await set(userRef, talacheroId); */
 
@@ -244,13 +245,30 @@ export function initUserPage() {
   async function checkChatStatus() {
     const userRef = ref(database, `users/${activeSession.uid}`);
     const snapshot = await get(userRef);
-
-    if (snapshot.exists() && snapshot.val().inChat) {
-      alert("Tienes un chat activo. Redirigiéndote...");
-      localStorage.setItem("activeChat", snapshot.val().inChat);
-      loadPage("chat.html");
+  
+    if (snapshot.exists()) {
+      const userData = snapshot.val();
+      console.log(userData)
+      console.log(userData.inChat)
+      if (userData.inChat) {
+        console.log("carga aqui?")
+        // Si hay un chat activo, redirigir al usuario al chat
+        alert("Tienes un chat activo. Redirigiéndote...");
+        localStorage.setItem("activeChat", userData.inChat);
+        loadPage("chat.html");
+      } else {
+        // Si no hay un chat activo, limpiar la información residual
+        localStorage.removeItem("activeChat");
+        localStorage.removeItem("currentTalacheroId");
+        localStorage.removeItem("selectedServiceId");
+  
+        // Si hay elementos de la interfaz que dependían del chat, limpiarlos
+        $("#chat-related-section").hide(); // Oculta cualquier sección relacionada con el chat
+        $("#talacheros-list").html(""); // Limpia la lista de talacheros
+      }
     }
   }
+  
 
   // Verificar antes de iniciar un nuevo chat
   checkChatStatus();

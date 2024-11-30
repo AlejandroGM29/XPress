@@ -1,5 +1,5 @@
 import { database } from "./firebase-config.js";
-import { ref, get, set, update } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+import { ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 import { handleLogout } from "./auth.js"; // Importar la función de logout centralizada
 
 // Inicializar la página del talachero/mecánico
@@ -11,16 +11,136 @@ export function initMecanicoPage() {
     window.location.href = "login.html";
     return;
   }
-
+  console.log("HOLA?")
   // Configurar datos del talachero
   document.getElementById("talachero-name").textContent =
     activeSession.name || "Talachero";
 
-  // Cargar servicios del talachero
+  // Cargar servicios y solicitudes
   loadServices(activeSession.uid);
+  loadRequests(activeSession.uid);
+
   setupAddService(activeSession.uid); // Configurar botón de agregar servicio
   setupToggleActive(activeSession.uid); // Configurar botón de estado activo/inactivo
 }
+
+// Cargar solicitudes en la pestaña de solicitudes
+function loadRequests(talacheroId) {
+  const requestsRef = ref(database, `chats`);
+  const requestList = document.getElementById("request-list");
+
+  onValue(requestsRef, async (snapshot) => {
+    requestList.innerHTML = "";
+
+    if (snapshot.exists()) {
+      const chats = snapshot.val();
+
+      const pendingRequests = Object.entries(chats).filter(
+        ([chatId, chatData]) =>
+          chatData.talacheroId === talacheroId && chatData.status === "waiting"
+      );
+
+      if (pendingRequests.length === 0) {
+        requestList.innerHTML = "<p>No tienes solicitudes pendientes.</p>";
+        return;
+      }
+
+      for (const [chatId, chatData] of pendingRequests) {
+        // Obtener información del sender
+        const senderSnapshot = await get(ref(database, `users/${chatData.sender}`));
+        if (senderSnapshot.exists()) {
+          const senderData = senderSnapshot.val();
+          chatData.userName = senderData.name || "Usuario desconocido";
+          chatData.userPhoto = senderData.photo || "./img/team/person.png";
+        } else {
+          chatData.userName = "Usuario desconocido";
+          chatData.userPhoto = "./img/team/person.png";
+        }
+
+        // Renderizar tarjeta de solicitud
+        renderRequestCard(chatId, chatData);
+      }
+    } else {
+      requestList.innerHTML = "<p>No tienes solicitudes pendientes.</p>";
+    }
+  });
+}
+
+// Renderizar una tarjeta de solicitud
+// Renderizar una tarjeta de solicitud
+function renderRequestCard(chatId, chatData) {
+  const requestList = document.getElementById("request-list");
+
+  const cardHtml = `
+    <div class="card mb-3" data-chat-id="${chatId}">
+      <div class="row g-0">
+        <!-- Sección izquierda: Información del cliente -->
+        <div class="col-md-9 d-flex align-items-center card-left" style="cursor: pointer;">
+          <img src="${chatData.userPhoto}" class="img-fluid rounded-start me-3" alt="${chatData.userName}" style="width: 100px; height: 100px; object-fit: cover;">
+          <div>
+            <h5 class="card-title">${chatData.serviceName}</h5>
+            <p class="card-text">${chatData.description}</p>
+            <p class="card-text"><small class="text-muted">De: ${chatData.userName}</small></p>
+          </div>
+        </div>
+
+        <!-- Sección derecha: Botón de rechazar -->
+        <div class="col-md-3 d-flex align-items-center justify-content-center">
+          <button class="btn btn-danger btn-lg reject-request w-75">Rechazar</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  requestList.insertAdjacentHTML("beforeend", cardHtml);
+
+  // Configurar eventos para las acciones
+  setupRejectButton(chatId);
+  setupCardLeftClick(chatId);
+}
+
+// Configurar evento para clic en la parte izquierda
+function setupCardLeftClick(chatId) {
+  const requestCardLeft = document.querySelector(`[data-chat-id="${chatId}"] .card-left`);
+
+  requestCardLeft.addEventListener("click", () => {
+    console.log(`Clicked on the left section of the card with chatId: ${chatId}`);
+  });
+}
+
+// Configurar botón de rechazar
+function setupRejectButton(chatId) {
+  const requestCard = document.querySelector(`[data-chat-id="${chatId}"]`);
+  const rejectButton = requestCard.querySelector(".reject-request");
+
+  rejectButton.addEventListener("click", () => handleRequestAction(chatId, "rejected"));
+}
+
+// Manejar acciones sobre la solicitud
+async function handleRequestAction(chatId, action) {
+  const chatRef = ref(database, `chats/${chatId}`);
+  const userRef = ref(database, `users`);
+
+  try {
+    if (action === "rejected") {
+      const chatSnapshot = await get(chatRef);
+      if (chatSnapshot.exists()) {
+        const chatData = chatSnapshot.val();
+
+        // Liberar al usuario del `inChat`
+        await update(ref(database, `users/${chatData.sender}`), { inChat: null });
+
+        // Cambiar estado del chat
+        await update(chatRef, { status: "rejected" });
+        alert("Solicitud rechazada.");
+      }
+    }
+  } catch (error) {
+    console.error("Error al rechazar la solicitud:", error);
+    alert("Hubo un error al procesar la solicitud.");
+  }
+}
+
 
 // Cargar servicios del talachero desde Firebase
 async function loadServices(uid) {
@@ -49,7 +169,7 @@ function renderServices(services) {
     serviceList.innerHTML = "<p>No tienes servicios registrados.</p>";
     return;
   }
-
+  console.log(services)
   Object.entries(services).forEach(([id, service]) => {
     const serviceItem = `
       <div class="card mb-2">
@@ -166,18 +286,5 @@ function setupRemoveServiceButtons() {
         alert("Error al eliminar el servicio.");
       }
     });
-  });
-}
-
-// Configurar el botón de cierre de sesión
-function setupLogout() {
-  const logoutButton = document.getElementById("logout");
-
-  // Eliminar cualquier evento previo antes de registrar uno nuevo
-  const newButton = logoutButton.cloneNode(true);
-  logoutButton.replaceWith(newButton);
-
-  newButton.addEventListener("click", async () => {
-    await handleLogout(); // Usar la función centralizada de logout
   });
 }

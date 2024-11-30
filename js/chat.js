@@ -1,25 +1,26 @@
 import { database } from "./firebase-config.js";
-import { ref, get, push, onValue, set, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+import { ref, get, onValue, set, update, push } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
 export function initChatPage() {
   console.log("Inicializando el chat...");
 
   const activeSession = JSON.parse(localStorage.getItem("activeSession"));
-  const chatId = localStorage.getItem("activeChat");
+  let chatId = localStorage.getItem("activeChat");
   const chatContainer = $("#chat-messages");
 
-  if (!activeSession || !chatId) {
+  if (!activeSession) {
     alert("No se pudo cargar el chat. Por favor, intenta nuevamente.");
     window.location.href = "index.html";
     return;
   }
 
-  const chatRef = ref(database, `chats/${chatId}`);
+  let chatRef = chatId ? ref(database, `chats/${chatId}`) : null;
   const userRef = ref(database, `users/${activeSession.uid}`);
   let chatStatus = null;
+  let autoCloseTimeout = null;
 
   /**
-   * Renderizar el contenido del chat.
+   * Renderizar el contenido del chat según el estado.
    */
   function renderChat(status) {
     $("#chat-inputs").empty();
@@ -30,7 +31,14 @@ export function initChatPage() {
         <p class="text-center text-muted">Esperando respuesta del talachero...</p>
         <button class="btn btn-danger mt-3" id="close-chat">Cerrar Chat</button>
       `);
-      setupCloseChat();
+      setupCloseChat("cancelled_by_user");
+    } else if (status === "rejected") {
+      $("#chat-inputs").html(`
+        <p class="text-center text-danger">El talachero rechazó la solicitud. Este chat se cerrará automáticamente en 5 minutos.</p>
+        <button class="btn btn-danger mt-3" id="close-chat">Cerrar Chat Ahora</button>
+      `);
+      setupCloseChat("cancelled_by_talachero");
+      setupAutoClose();
     } else if (!status || status === "open") {
       $("#chat-inputs").html(`
         <div id="step-1" class="chat-step">
@@ -111,6 +119,29 @@ export function initChatPage() {
   }
 
   /**
+   * Configurar cierre del chat.
+   */
+  function setupCloseChat(cancellationStatus) {
+    $("#close-chat").on("click", async () => {
+      const confirmClose = confirm("¿Estás seguro de que deseas cerrar el chat?");
+      if (!confirmClose) return;
+
+      try {
+        if (chatRef) {
+          await update(chatRef, { status: cancellationStatus });
+        }
+        await set(ref(database, `users/${activeSession.uid}/inChat`), null);
+        localStorage.removeItem("activeChat");
+        alert("Chat cerrado exitosamente.");
+        window.location.href = "index.html";
+      } catch (error) {
+        console.error("Error al cerrar el chat:", error);
+        alert("Hubo un problema al cerrar el chat.");
+      }
+    });
+  }
+
+  /**
    * Cargar servicios del talachero.
    */
   async function loadServices() {
@@ -122,9 +153,9 @@ export function initChatPage() {
       if (talacheroSnapshot.exists()) {
         const services = talacheroSnapshot.val().services || [];
         const serviceSelect = $("#service-selection");
-        services.forEach((service, index) => {
+        services.forEach((service) => {
           serviceSelect.append(
-            `<option value="${index}">${service.name} - $${service.price}</option>`
+            `<option value="${service.name}">${service.name} - $${service.price}</option>`
           );
         });
       }
@@ -137,7 +168,7 @@ export function initChatPage() {
    * Enviar problema.
    */
   async function sendProblem() {
-    const serviceIndex = $("#service-selection").val();
+    const serviceName = $("#service-selection").val();
     const description = $("#problem-description").val();
     const file = $("#problem-photo")[0].files[0];
 
@@ -162,45 +193,35 @@ export function initChatPage() {
       }
 
       const photoUrl = result.secure_url;
+      const talacheroId = localStorage.getItem("currentTalacheroId");
 
-      const message = {
+      // Crear un nuevo chat en la base de datos
+      const newChatRef = push(ref(database, `chats`));
+      chatId = newChatRef.key;
+
+      const newChatData = {
         sender: activeSession.uid,
-        serviceIndex,
+        talacheroId,
+        serviceName,
         description,
         photo: photoUrl,
         status: "waiting",
         timestamp: Date.now(),
       };
 
-      await push(chatRef, message);
+      await set(newChatRef, newChatData);
       await set(ref(database, `users/${activeSession.uid}/inChat`), chatId);
 
+      // Guardar el chatId en localStorage
+      localStorage.setItem("activeChat", chatId);
+      chatRef = chatId ? ref(database, `chats/${chatId}`) : null;
+      listenForChanges();
       renderChat("waiting");
       alert("Solicitud enviada. Esperando respuesta.");
     } catch (error) {
       console.error("Error al enviar problema:", error);
       alert("Hubo un problema al enviar tu solicitud.");
     }
-  }
-
-  /**
-   * Configurar cierre del chat.
-   */
-  function setupCloseChat() {
-    $("#close-chat").on("click", async () => {
-      const confirmClose = confirm("¿Estás seguro de que deseas cerrar el chat?");
-      if (!confirmClose) return;
-
-      try {
-        await remove(chatRef);
-        await set(ref(database, `users/${activeSession.uid}/inChat`), null);
-        alert("Chat cerrado exitosamente.");
-        window.location.href = "index.html";
-      } catch (error) {
-        console.error("Error al cerrar el chat:", error);
-        alert("Hubo un problema al cerrar el chat.");
-      }
-    });
   }
 
   /**
@@ -215,7 +236,11 @@ export function initChatPage() {
         <div class="message ${isUserMessage ? "user-message" : "talachero-message"}">
           <h6>${message.serviceName || "Servicio"}</h6>
           <p>${message.description}</p>
-          ${message.photo ? `<img src="${message.photo}" alt="Problema" style="max-width: 300px;">` : ""}
+          ${
+            message.photo
+              ? `<img src="${message.photo}" alt="Problema" style="max-width: 300px;">`
+              : ""
+          }
           <small>${new Date(message.timestamp).toLocaleString()}</small>
         </div>
       `;
@@ -228,19 +253,24 @@ export function initChatPage() {
    * Escuchar cambios en el chat.
    */
   function listenForChanges() {
+    console.log("HOLA?");
+    console.log(chatRef)
+    console.log("TEST")
+    if (!chatRef) {
+        renderChat("open");
+        return;
+    }
+
     onValue(chatRef, (snapshot) => {
+        console.log(snapshot)
       if (snapshot.exists()) {
         const chatData = snapshot.val();
-        const messages = Object.values(chatData);
-        renderMessages(messages);
+        renderChat(chatData.status);
 
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage && lastMessage.status) {
-          renderChat(lastMessage.status);
-        } else {
-          renderChat("open");
-        }
+        const messages = [chatData];
+        renderMessages(messages);
       } else {
+        console.log("HOLA?")
         renderChat("open");
       }
     });
