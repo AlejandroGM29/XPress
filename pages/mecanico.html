@@ -2,22 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel de Talachero</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Enlaces a hojas de estilo -->
   <link rel="stylesheet" href="css/mecanico.css">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-  <!-- <nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container-fluid">
-      <a class="navbar-brand" href="#">Talachero Dashboard</a>
+      <a class="navbar-brand" href="#">Panel de Talachero</a>
       <button class="btn btn-danger" id="logout">Cerrar sesión</button>
     </div>
   </nav>
- -->
+
+  <!-- Contenido principal -->
   <div class="container mt-4">
     <h1>Bienvenido, <span id="talachero-name"></span></h1>
+    <p>Tarifa por kilómetro: <span id="tarifa-km-display">No establecida</span></p>
+    <button class="btn btn-info mb-3" id="set-tarifa-km">Configurar Tarifa por Kilómetro</button>
 
+    <!-- Pestañas -->
     <ul class="nav nav-tabs" id="talachero-tabs">
       <li class="nav-item">
         <a class="nav-link active" id="services-tab" href="#services" data-bs-toggle="tab">Mis Servicios</a>
@@ -27,6 +33,7 @@
       </li>
     </ul>
 
+    <!-- Contenido de las pestañas -->
     <div class="tab-content mt-4">
       <!-- Tab: Mis Servicios -->
       <div class="tab-pane fade show active" id="services">
@@ -48,7 +55,9 @@
     </div>
   </div>
 
+  <!-- Enlaces a scripts -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> <!-- Asegúrate de incluir jQuery -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="js/mecanico.js"></script>
+  <script type="module" src="js/mecanico.js"></script>
 </body>
 </html>

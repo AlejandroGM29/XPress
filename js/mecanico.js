@@ -1,14 +1,11 @@
 import { database } from "./firebase-config.js";
 import { ref, get, set, update, onValue, push } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-let isMecanicoPageInitialized = false;
-let requestsUnsubscribe = null; // Mover aquí la variable
+// Mover la variable requestsUnsubscribe al nivel del módulo
+let requestsUnsubscribe = null;
 
 export function initMecanicoPage() {
-    if (isMecanicoPageInitialized) {
-        return;
-    }
-    isMecanicoPageInitialized = true;
+    console.log("initMecanicoPage called");
 
     const activeSession = JSON.parse(localStorage.getItem("activeSession"));
 
@@ -25,35 +22,123 @@ export function initMecanicoPage() {
 
     setupAddService(activeSession.uid);
     setupToggleActive(activeSession.uid);
+
+    // Mostrar tarifa actual
+    const tarifaKmDisplay = $("#tarifa-km-display");
+    tarifaKmDisplay.text(activeSession.tarifaKm || "No establecida");
+
+    // Configurar tarifa por kilómetro
+    const setTarifaKmButton = $("#set-tarifa-km");
+    setTarifaKmButton.on("click", async () => {
+        const tarifaKm = prompt("Introduce tu tarifa por kilómetro:");
+        if (tarifaKm) {
+            try {
+                await update(ref(database, `users/${activeSession.uid}`), { tarifaKm });
+                activeSession.tarifaKm = tarifaKm;
+                localStorage.setItem("activeSession", JSON.stringify(activeSession));
+                tarifaKmDisplay.text(tarifaKm);
+                alert("Tarifa actualizada exitosamente.");
+            } catch (error) {
+                console.error("Error al actualizar tarifa:", error);
+            }
+        }
+    });
+
+    // Limpiamos eventos previos antes de adjuntar nuevos
+    $(document).off('.mecanicoEvents');
+
+    // Usamos delegación de eventos con espacio de nombres
+    $(document).on('click.mecanicoEvents', '.reject-request', function() {
+        const chatId = $(this).closest('[data-chat-id]').data('chat-id');
+        handleRequestAction(chatId, 'rejected');
+    });
+
+    $(document).on('click.mecanicoEvents', '.card-left', function() {
+        const chatId = $(this).closest('[data-chat-id]').data('chat-id');
+        localStorage.setItem('activeChat', chatId);
+        loadPage('chat.html');
+    });
+
+    // Verificar si hay un chat activo y redirigir
+    checkChatStatus();
 }
+
+export function destroyMecanicoPage() {
+    console.log("destroyMecanicoPage called");
+    if (requestsUnsubscribe) {
+        requestsUnsubscribe();
+        requestsUnsubscribe = null;
+    }
+    $(document).off('.mecanicoEvents');
+}
+
+async function checkChatStatus() {
+    const activeSession = JSON.parse(localStorage.getItem("activeSession"));
+    const userRef = ref(database, `users/${activeSession.uid}`);
+    const snapshot = await get(userRef);
+
+    if (snapshot.exists()) {
+        const userData = snapshot.val();
+        if (userData.inChat) {
+            // Si hay un chat activo, redirigir al talachero al chat
+            alert("Tienes un chat activo. Redirigiéndote...");
+            localStorage.setItem("activeChat", userData.inChat);
+            loadPage("chat.html");
+        } else {
+            // Limpiar información residual si es necesario
+            localStorage.removeItem("activeChat");
+        }
+    }
+}
+
+let requestsCallback = null;
+let isProcessing = false;
 
 function loadRequests(talacheroId) {
     const requestsRef = ref(database, `chats`);
     const requestList = $("#request-list");
 
     // Si hay un listener anterior, lo desuscribimos
-    if (requestsUnsubscribe) {
-        requestsUnsubscribe();
+    if (requestsCallback) {
+        console.log("Desuscribiendo listener anterior");
+        off(requestsRef, 'value', requestsCallback);
+        requestsCallback = null;
     }
 
-    // Registramos el nuevo listener y almacenamos la función de desuscripción
-    requestsUnsubscribe = onValue(requestsRef, async (snapshot) => {
+    // Definimos el callback y lo almacenamos
+    requestsCallback = async (snapshot) => {
+        if (isProcessing) {
+            console.log('Ya se está procesando, se omite esta llamada');
+            return;
+        }
+        isProcessing = true;
+
+        console.log("onValue triggered for requestsRef");
         requestList.empty();
 
         if (snapshot.exists()) {
             const chats = snapshot.val();
+            console.log("Chats obtenidos:", chats);
 
             const pendingRequests = Object.entries(chats).filter(
                 ([chatId, chatData]) =>
                     chatData.talacheroId === talacheroId && chatData.status === "waiting"
             );
 
+            console.log("Solicitudes pendientes:", pendingRequests);
+
             if (pendingRequests.length === 0) {
                 requestList.html("<p>No tienes solicitudes pendientes.</p>");
+                isProcessing = false;
                 return;
             }
 
-            for (const [chatId, chatData] of pendingRequests) {
+            for (const [chatId, originalChatData] of pendingRequests) {
+                console.log(`Procesando solicitud: ${chatId}`, originalChatData);
+
+                // Crear una copia profunda de chatData
+                const chatData = JSON.parse(JSON.stringify(originalChatData));
+
                 // Obtener información del usuario
                 const senderSnapshot = await get(ref(database, `users/${chatData.sender}`));
                 if (senderSnapshot.exists()) {
@@ -88,10 +173,18 @@ function loadRequests(talacheroId) {
         } else {
             requestList.html("<p>No tienes solicitudes pendientes.</p>");
         }
-    });
+
+        isProcessing = false;
+    };
+
+    // Registramos el listener
+    onValue(requestsRef, requestsCallback);
 }
 
+
+
 function renderRequestCard(chatId, chatData) {
+    console.log(`Renderizando tarjeta para solicitud: ${chatId}`, chatData);
     const requestList = $("#request-list");
 
     const cardHtml = `
@@ -114,18 +207,6 @@ function renderRequestCard(chatId, chatData) {
 
     requestList.append(cardHtml);
 }
-
-// Usamos delegación de eventos para evitar múltiples bindings
-$(document).on('click', '.reject-request', function() {
-    const chatId = $(this).closest('[data-chat-id]').data('chat-id');
-    handleRequestAction(chatId, 'rejected');
-});
-
-$(document).on('click', '.card-left', function() {
-    const chatId = $(this).closest('[data-chat-id]').data('chat-id');
-    localStorage.setItem('activeChat', chatId);
-    loadPage('chat.html');
-});
 
 async function handleRequestAction(chatId, action) {
     const chatRef = ref(database, `chats/${chatId}`);
@@ -157,19 +238,18 @@ async function handleRequestAction(chatId, action) {
     }
 }
 
-// Resto de tu código permanece igual...
-
-
-
 async function loadServices(uid) {
+    console.log("Cargando servicios para UID:", uid);
     try {
         const servicesRef = ref(database, `users/${uid}/services`);
         const snapshot = await get(servicesRef);
 
         if (snapshot.exists()) {
             const services = snapshot.val();
+            console.log("Servicios obtenidos:", services);
             renderServices(services);
         } else {
+            console.log("No se encontraron servicios.");
             renderServices([]);
         }
     } catch (error) {
