@@ -28,6 +28,7 @@ let routeCoordinates = [];
 let routeMessageSent = false;
 let simulationRunning = false;
 let mapInitialized = false;
+let alertShown = false; // Nuevo flag para controlar alertas duplicadas
 
 // Variable para almacenar la referencia del chat
 let chatRefGlobal = null;
@@ -146,6 +147,16 @@ async function validateChatState() {
       return;
     }
 
+    // Mostrar alerta una sola vez cuando el servicio empieza
+    if (
+      chatData.status === "journey_started" &&
+      !alertShown &&
+      userTypeGlobal === "usuario"
+    ) {
+      alert("El talachero ha iniciado el servicio.");
+      alertShown = true;
+    }
+
     // Renderizar la interfaz según el estado del chat
     renderChat(chatData.status);
     listenForChanges();
@@ -165,9 +176,9 @@ async function clearChatState() {
     await set(ref(database, `users/${activeSession.uid}/inChat`), null);
     localStorage.removeItem("activeChat");
 
-    // Además, si el usuario es talachero, limpiar su propio inChat
-    if (userTypeGlobal === "talachero") {
-      await set(ref(database, `users/${activeSession.uid}/inChat`), null);
+    // Limpiar el chatUid si el usuario es "usuario"
+    if (userTypeGlobal === "usuario") {
+      await set(ref(database, `users/${activeSession.uid}/chatUid`), null);
     }
   } catch (error) {
     console.error("Error al limpiar el estado del chat:", error);
@@ -234,18 +245,18 @@ function renderMessages(messages) {
     if (message.type === "route") {
       // Renderizar un botón para abrir el modal si es un mensaje de tipo ruta
       const isTalacheroMessage =
-        message.sender !== "usuario" && message.sender !== "system";
+        message.sender !== activeSession.uid && message.sender !== "system";
       const messageHtml = `
-                <div class="message ${
-                  isTalacheroMessage ? "talachero-message" : "system-message"
-                }">
-                    <p>${message.description}</p>
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#routeModal">Ver Ruta en Tiempo Real</button>
-                    <small>${new Date(
-                      message.timestamp
-                    ).toLocaleString()}</small>
-                </div>
-            `;
+        <div class="message ${
+          isTalacheroMessage ? "talachero-message" : "system-message"
+        }">
+            <p>${message.description}</p>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#routeModal">Ver Ruta en Tiempo Real</button>
+            <small>${new Date(
+              message.timestamp
+            ).toLocaleString()}</small>
+        </div>
+      `;
       chatContainer.append(messageHtml);
       return; // Saltar el renderizado de texto para mensajes de tipo "route"
     }
@@ -264,20 +275,19 @@ function renderMessages(messages) {
       if (userTypeGlobal === "talachero") {
         // Mostrar cálculo completo al talachero
         messageContent = `
-                    <p>${message.description}</p>
-                    <div id="calculo-map-${message.id}" class="mt-2" style="height: 200px;"></div>
-                `;
+          <p>${message.description}</p>
+          <div id="calculo-map-${message.id}" class="mt-2" style="height: 200px;"></div>
+        `;
       } else if (userTypeGlobal === "usuario") {
         // Mostrar solo el precio final al usuario
-        // Modificación: Eliminar "con el 15%" y mostrar solo "Precio Final: $X"
         const finalPriceMatch = message.description.match(
-          /Total \(con 15%\): \$([\d.]+)/
+          /Precio Final: \$([\d.]+)/
         );
         const finalPrice = finalPriceMatch ? finalPriceMatch[1] : "N/A";
         messageContent = `
-                    <p>Precio Final: $${finalPrice}</p>
-                    <div id="calculo-map-${message.id}" class="mt-2" style="height: 200px;"></div>
-                `;
+          <p>Precio Final: $${finalPrice}</p>
+          <div id="calculo-map-${message.id}" class="mt-2" style="height: 200px;"></div>
+        `;
       }
     } else {
       messageContent = isSystemMessage
@@ -286,80 +296,110 @@ function renderMessages(messages) {
     }
 
     const messageHtml = `
-            <div class="message ${
-              isSystemMessage
-                ? "system-message"
-                : isUserMessage
-                ? "user-message"
-                : "talachero-message"
-            }">
-                ${messageContent}
-                ${
-                  message.photo
-                    ? `<img src="${message.photo}" alt="Imagen" style="max-width: 300px;">`
-                    : ""
-                }
-                <small>${new Date(message.timestamp).toLocaleString()}</small>
-            </div>
-        `;
+      <div class="message ${
+        isSystemMessage
+          ? "system-message"
+          : isUserMessage
+          ? "user-message"
+          : "talachero-message"
+      }">
+          ${messageContent}
+          ${
+            message.photo
+              ? `<img src="${message.photo}" alt="Imagen" style="max-width: 300px;">`
+              : ""
+          }
+          <small>${new Date(message.timestamp).toLocaleString()}</small>
+      </div>
+    `;
     chatContainer.append(messageHtml);
 
     // Agregar mapas a los mensajes de cálculo
     if (isCalculoMessage) {
       const mapElementId = `calculo-map-${message.id}`;
-      const talacheroCoordinates = message.talacheroCoordinates; // Asegurarse de incluir esta propiedad al enviar el mensaje
+      const userCoordinates = message.coordinates; // Obtener las coordenadas del usuario
+      const talacheroCoordinates = message.talacheroCoordinates; // Ubicación del talachero
 
-      if (talacheroCoordinates) {
-        const mapInstance = L.map(mapElementId, {
+      if (userCoordinates) {
+        // Renderizar mapa para la ubicación del usuario
+        const userMapHtml = `
+          <div id="user-map-${message.id}" class="mt-2" style="height: 200px;"></div>
+        `;
+        $(`#calculo-map-${message.id}`).append(userMapHtml);
+
+        const userMapInstance = L.map(`user-map-${message.id}`, {
           scrollWheelZoom: false,
           dragging: false,
           zoomControl: false,
           attributionControl: false,
-        }).setView(
-          [talacheroCoordinates.latitude, talacheroCoordinates.longitude],
-          15
-        );
+        }).setView([userCoordinates.latitude, userCoordinates.longitude], 15);
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: "&copy; OpenStreetMap contributors",
-        }).addTo(mapInstance);
+        }).addTo(userMapInstance);
 
-        L.marker(
-          [talacheroCoordinates.latitude, talacheroCoordinates.longitude],
-          { icon: talacheroIcon }
-        )
-          .addTo(mapInstance)
+        L.marker([userCoordinates.latitude, userCoordinates.longitude], {
+          icon: userIcon,
+        })
+          .addTo(userMapInstance)
+          .bindPopup("Ubicación del Usuario")
+          .openPopup();
+      }
+
+      if (talacheroCoordinates) {
+        // Renderizar mapa para la ubicación del talachero
+        const talacheroMapHtml = `
+          <div id="talachero-map-${message.id}" class="mt-2" style="height: 200px;"></div>
+        `;
+        $(`#calculo-map-${message.id}`).append(talacheroMapHtml);
+
+        const talacheroMapInstance = L.map(`talachero-map-${message.id}`, {
+          scrollWheelZoom: false,
+          dragging: false,
+          zoomControl: false,
+          attributionControl: false,
+        }).setView([talacheroCoordinates.latitude, talacheroCoordinates.longitude], 15);
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap contributors",
+        }).addTo(talacheroMapInstance);
+
+        L.marker([talacheroCoordinates.latitude, talacheroCoordinates.longitude], {
+          icon: talacheroIcon,
+        })
+          .addTo(talacheroMapInstance)
           .bindPopup("Ubicación del Talachero")
           .openPopup();
       }
     }
 
-    // Incluir la ubicación del usuario en su primer mensaje
-    if (isUserMessage && message.coordinates) {
-      const mapElementId = `user-map-${message.id}`;
-      const userCoordinates = message.coordinates;
+    // Incluir la ubicación en el mensaje si contiene coordenadas
+    if (message.coordinates) {
+      const mapElementId = `map-${message.id}`;
+      const coordinates = message.coordinates;
+      const senderType = isUserMessage ? "Tu Ubicación" : "Ubicación del Usuario";
 
       const mapHtml = `
-                <div id="user-map-${message.id}" class="mt-2" style="height: 200px;"></div>
-            `;
+        <div id="${mapElementId}" class="mt-2" style="height: 200px;"></div>
+      `;
       $(`.message:last`).append(mapHtml);
 
-      const mapInstance = L.map(`user-map-${message.id}`, {
+      const mapInstance = L.map(mapElementId, {
         scrollWheelZoom: false,
         dragging: false,
         zoomControl: false,
         attributionControl: false,
-      }).setView([userCoordinates.latitude, userCoordinates.longitude], 15);
+      }).setView([coordinates.latitude, coordinates.longitude], 15);
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap contributors",
       }).addTo(mapInstance);
 
-      L.marker([userCoordinates.latitude, userCoordinates.longitude], {
-        icon: userIcon,
+      L.marker([coordinates.latitude, coordinates.longitude], {
+        icon: isUserMessage ? userIcon : talacheroIcon,
       })
         .addTo(mapInstance)
-        .bindPopup("Tu Ubicación")
+        .bindPopup(senderType)
         .openPopup();
     }
   });
@@ -391,39 +431,56 @@ function renderChat(status) {
 function renderUserChat(status) {
   if (status === "waiting") {
     $("#chat-inputs").html(`
-            <p class="text-center text-muted">Esperando respuesta del talachero...</p>
-            <button class="btn btn-danger mt-3" id="close-chat">Cerrar Chat</button>
-        `);
+      <p class="text-center text-muted">Esperando respuesta del talachero...</p>
+      <button class="btn btn-danger mt-3" id="close-chat">Cerrar Chat</button>
+    `);
     setupCloseChat("cancelled_by_user");
   } else if (status === "active") {
     $("#chat-inputs").html(`
-            <p class="text-center text-muted">El talachero ha enviado una propuesta. Por favor, revísala.</p>
-            <button class="btn btn-success mt-3" id="accept-proposal">Aceptar</button>
-            <button class="btn btn-danger mt-3" id="reject-proposal">Rechazar</button>
-        `);
+      <p class="text-center text-muted">El talachero ha enviado una propuesta. Por favor, revísala.</p>
+      <div class="mb-3">
+        <label for="payment-method" class="form-label">Método de Pago:</label>
+        <select id="payment-method" class="form-select">
+          <option value="efectivo">Efectivo</option>
+          <!-- Suponiendo que las tarjetas están almacenadas en activeSession.cards -->
+          ${activeSession.cards && activeSession.cards.length > 0
+            ? activeSession.cards
+                .map(
+                  (card) =>
+                    `<option value="${card.id}">${card.brand} **** **** **** ${card.last4}</option>`
+                )
+                .join("")
+            : `<option value="" disabled>No tienes tarjetas registradas</option>`}
+        </select>
+      </div>
+      <button class="btn btn-success mt-3" id="accept-proposal">Aceptar</button>
+      <button class="btn btn-danger mt-3" id="reject-proposal">Rechazar</button>
+    `);
     setupProposalResponse();
   } else if (status === "rejected") {
     $("#chat-inputs").html(`
-            <p class="text-center text-muted">El talachero rechazó tu solicitud.</p>
-            <button class="btn btn-danger mt-3" id="close-rejected-chat">Cerrar Chat</button>
-        `);
+      <p class="text-center text-muted">El talachero rechazó tu solicitud.</p>
+      <button class="btn btn-danger mt-3" id="close-rejected-chat">Cerrar Chat</button>
+    `);
     setupCloseChat("cancelled_by_user");
   } else if (status === "confirmed") {
     $("#chat-inputs").html(`
-            <p class="text-center text-muted">Esperando que el talachero inicie el trayecto...</p>
-        `);
+      <p class="text-center text-muted">Esperando que el talachero inicie el trayecto...</p>
+    `);
   } else if (status === "journey_started") {
     renderMessageInputs();
   } else if (status === "en_servicio") {
     $("#chat-inputs").html(`
-            <p class="text-center text-success">El talachero ha llegado y está atendiendo tu solicitud.</p>
-            <p class="text-center text-muted">Puedes enviar mensajes mientras el servicio está en curso.</p>
-        `);
+      <p class="text-center text-success">El talachero ha llegado y está atendiendo tu solicitud.</p>
+      <p class="text-center text-muted">Puedes enviar mensajes mientras el servicio está en curso.</p>
+    `);
     renderMessageInputs(); // Opcional: Permitir enviar mensajes en este estado
   } else if (status === "completed") {
     $("#chat-inputs").html(`
-            <p class="text-center text-success">El talachero ha completado el viaje.</p>
-        `);
+      <p class="text-center text-success">El talachero ha completado el viaje.</p>
+      <button class="btn btn-success mt-3" id="close-chat">Cerrar Chat</button>
+    `);
+    setupCloseChat("completed");
   }
 }
 
@@ -436,41 +493,43 @@ function renderTalacheroChat(status) {
     renderTalacheroInitialInputs();
   } else if (status === "active") {
     $("#chat-inputs").html(`
-            <p class="text-center text-muted">Esperando confirmación del usuario...</p>
-        `);
+      <p class="text-center text-muted">Esperando confirmación del usuario...</p>
+    `);
   } else if (status === "confirmed") {
     $("#chat-inputs").html(`
-            <button class="btn btn-primary mt-3" id="start-journey">Iniciar Trayecto</button>
-            <button class="btn btn-danger mt-3" id="close-chat">Cancelar Chat</button>
-        `);
+      <button class="btn btn-primary mt-3" id="start-journey">Iniciar Trayecto</button>
+      <button class="btn btn-danger mt-3" id="close-chat">Cancelar Chat</button>
+    `);
     $("#start-journey").on("click", startJourney);
     $("#close-chat").on("click", () =>
       setupCloseChat("cancelled_by_talachero")
     );
   } else if (status === "journey_started") {
     $("#chat-inputs").html(`
-            <p class="text-center text-muted">Trayecto en progreso...</p>
-        `);
+      <p class="text-center text-muted">Trayecto en progreso...</p>
+    `);
   } else if (status === "en_servicio") {
     $("#chat-inputs").html(`
-            <p class="text-center text-success">Has llegado al lugar y estás atendiendo al usuario.</p>
-            <button class="btn btn-success mt-3" id="complete-service">Terminar Servicio</button>
-            <button class="btn btn-danger mt-3" id="close-chat">Cancelar Chat</button>
-        `);
+      <p class="text-center text-success">Has llegado al lugar y estás atendiendo al usuario.</p>
+      <button class="btn btn-success mt-3" id="complete-service">Terminar Servicio</button>
+      <button class="btn btn-danger mt-3" id="close-chat">Cancelar Chat</button>
+    `);
     $("#complete-service").on("click", completeService);
     $("#close-chat").on("click", () =>
       setupCloseChat("cancelled_by_talachero")
     );
   } else if (status === "rejected_by_user") {
     $("#chat-inputs").html(`
-            <p class="text-center text-muted">El usuario rechazó tu propuesta.</p>
-            <button class="btn btn-danger mt-3" id="close-chat">Cerrar Chat</button>
-        `);
+      <p class="text-center text-muted">El usuario rechazó tu propuesta.</p>
+      <button class="btn btn-danger mt-3" id="close-chat">Cerrar Chat</button>
+    `);
     setupCloseChat("cancelled_by_talachero");
   } else if (status === "completed") {
     $("#chat-inputs").html(`
-            <p class="text-center text-success">El chat se ha completado.</p>
-        `);
+      <p class="text-center text-success">El chat se ha completado.</p>
+      <button class="btn btn-success mt-3" id="close-chat">Cerrar Chat</button>
+    `);
+    setupCloseChat("completed");
   }
 }
 
@@ -479,42 +538,42 @@ function renderTalacheroChat(status) {
  */
 function renderInitialInputs() {
   $("#chat-inputs").html(`
-        <div id="step-1" class="chat-step">
-            <label for="service-selection">Selecciona un servicio:</label>
-            <select id="service-selection" class="form-select"></select>
-            <button class="btn btn-primary mt-3" id="next-step-1">Siguiente</button>
-        </div>
-        <div id="step-2" class="chat-step" style="display:none;">
-            <label for="problem-description">Describe tu problema:</label>
-            <textarea id="problem-description" class="form-control" rows="3"></textarea>
-            <div class="mt-3 d-flex justify-content-between">
-                <button class="btn btn-secondary" id="prev-step-2">Regresar</button>
-                <button class="btn btn-primary" id="next-step-2">Siguiente</button>
-            </div>
-        </div>
-        <div id="step-3" class="chat-step" style="display:none;">
-            <p>Necesitamos acceder a tu ubicación para continuar.</p>
-            <button class="btn btn-primary" id="get-user-location">Obtener Ubicación</button>
-            <div id="user-map-container" style="display:none;">
-                <p>Selecciona tu ubicación en el mapa:</p>
-                <div id="user-map" style="height: 300px;"></div>
-                <p id="user-location-status" class="mt-2 text-muted"></p>
-            </div>
-            <div class="mt-3 d-flex justify-content-between">
-                <button class="btn btn-secondary" id="prev-step-3">Regresar</button>
-                <button class="btn btn-primary" id="next-step-3" disabled>Siguiente</button>
-            </div>
-        </div>
-        <div id="step-4" class="chat-step" style="display:none;">
-            <label for="problem-photo">Sube una foto del problema (opcional):</label>
-            <input type="file" id="problem-photo" class="form-control" accept="image/*">
-            <img id="problem-photo-preview" src="" alt="Previsualización" style="display:none; max-width: 200px; margin-top:10px;">
-            <div class="mt-3 d-flex justify-content-between">
-                <button class="btn btn-secondary" id="prev-step-4">Regresar</button>
-                <button class="btn btn-primary" id="send-initial-message">Enviar</button>
-            </div>
-        </div>
-    `);
+    <div id="step-1" class="chat-step">
+      <label for="service-selection">Selecciona un servicio:</label>
+      <select id="service-selection" class="form-select"></select>
+      <button class="btn btn-primary mt-3" id="next-step-1">Siguiente</button>
+    </div>
+    <div id="step-2" class="chat-step" style="display:none;">
+      <label for="problem-description">Describe tu problema:</label>
+      <textarea id="problem-description" class="form-control" rows="3"></textarea>
+      <div class="mt-3 d-flex justify-content-between">
+        <button class="btn btn-secondary" id="prev-step-2">Regresar</button>
+        <button class="btn btn-primary" id="next-step-2">Siguiente</button>
+      </div>
+    </div>
+    <div id="step-3" class="chat-step" style="display:none;">
+      <p>Necesitamos acceder a tu ubicación para continuar.</p>
+      <button class="btn btn-primary" id="get-user-location">Obtener Ubicación</button>
+      <div id="user-map-container" style="display:none;">
+        <p>Selecciona tu ubicación en el mapa:</p>
+        <div id="user-map" style="height: 300px;"></div>
+        <p id="user-location-status" class="mt-2 text-muted"></p>
+      </div>
+      <div class="mt-3 d-flex justify-content-between">
+        <button class="btn btn-secondary" id="prev-step-3">Regresar</button>
+        <button class="btn btn-primary" id="next-step-3" disabled>Siguiente</button>
+      </div>
+    </div>
+    <div id="step-4" class="chat-step" style="display:none;">
+      <label for="problem-photo">Sube una foto del problema (opcional):</label>
+      <input type="file" id="problem-photo" class="form-control" accept="image/*">
+      <img id="problem-photo-preview" src="" alt="Previsualización" style="display:none; max-width: 200px; margin-top:10px;">
+      <div class="mt-3 d-flex justify-content-between">
+        <button class="btn btn-secondary" id="prev-step-4">Regresar</button>
+        <button class="btn btn-primary" id="send-initial-message">Enviar</button>
+      </div>
+    </div>
+  `);
 
   setupInitialInputs();
   loadServices();
@@ -809,27 +868,34 @@ async function loadServices() {
  */
 function renderTalacheroInitialInputs() {
   $("#chat-inputs").html(`
-        <div id="talachero-inputs">
-            <button class="btn btn-primary" id="get-talachero-location">Obtener Mi Ubicación</button>
-            <div id="talachero-map-container" style="display:none;">
-                <p>Tu ubicación actual:</p>
-                <div id="talachero-map" style="height: 300px;"></div>
-                <p id="talachero-location-status" class="mt-2 text-muted"></p>
-            </div>
-            <label for="service-price" class="mt-2">Precio del servicio:</label>
-            <input type="number" id="service-price" class="form-control" min="0" step="0.01">
-            <label for="optional-note" class="mt-2">Nota (opcional):</label>
-            <textarea id="optional-note" class="form-control" rows="2"></textarea>
-            <button class="btn btn-primary mt-3" id="send-initial-response">Enviar Propuesta</button>
-            <button class="btn btn-danger mt-3" id="reject-request">Rechazar Solicitud</button>
-        </div>
-    `);
+    <div id="talachero-inputs">
+      <button class="btn btn-primary" id="get-talachero-location">Obtener Mi Ubicación</button>
+      <div id="talachero-map-container" style="display:none;">
+        <p>Tu ubicación actual:</p>
+        <div id="talachero-map" style="height: 300px;"></div>
+        <p id="talachero-location-status" class="mt-2 text-muted"></p>
+      </div>
+      <div class="mt-3">
+        <label for="available-services" class="form-label">Selecciona un servicio:</label>
+        <select id="available-services" class="form-select">
+          <!-- Opciones cargadas dinámicamente -->
+        </select>
+      </div>
+      <label for="service-price" class="mt-2">Precio del servicio:</label>
+      <input type="number" id="service-price" class="form-control" min="0" step="0.01">
+      <label for="optional-note" class="mt-2">Nota (opcional):</label>
+      <textarea id="optional-note" class="form-control" rows="2"></textarea>
+      <button class="btn btn-primary mt-3" id="send-initial-response">Enviar Propuesta</button>
+      <button class="btn btn-danger mt-3" id="reject-request">Rechazar Solicitud</button>
+    </div>
+  `);
 
   $("#get-talachero-location").on("click", () => {
     initializeTalacheroMap();
   });
 
   loadTalacheroServicePrice();
+  loadAvailableServices();
 
   $("#send-initial-response").on("click", sendInitialResponse);
   $("#reject-request").on("click", () => handleRequestAction("rejected"));
@@ -907,9 +973,55 @@ async function loadTalacheroServicePrice() {
 }
 
 /**
+ * Cargar los servicios disponibles del talachero, incluyendo el del usuario.
+ */
+async function loadAvailableServices() {
+  const talacheroId = localStorage.getItem("currentTalacheroId");
+  if (!talacheroId) return;
+
+  try {
+    const servicesRef = ref(database, `users/${talacheroId}/services`);
+    const snapshot = await get(servicesRef);
+    if (snapshot.exists()) {
+      const services = snapshot.val();
+      const availableServicesSelect = $("#available-services");
+      // Cargar servicios del talachero
+      Object.values(services).forEach((service) => {
+        availableServicesSelect.append(
+          `<option value="${service.name}" data-price="${service.price}">${service.name} - $${service.price}</option>`
+        );
+      });
+
+      // Obtener el servicio seleccionado por el usuario
+      const userMessage = await getUserInitialMessage();
+      if (userMessage && userMessage.serviceName) {
+        // Verificar si el servicio del usuario ya está en la lista
+        const exists = Object.values(services).some(
+          (service) => service.name === userMessage.serviceName
+        );
+        if (!exists) {
+          availableServicesSelect.append(
+            `<option value="${userMessage.serviceName}" data-price="0" selected>${userMessage.serviceName} - Precio Base</option>`
+          );
+        } else {
+          availableServicesSelect
+            .find(`option[value="${userMessage.serviceName}"]`)
+            .prop("selected", true);
+        }
+      }
+    } else {
+      console.log("No se encontraron servicios para el talachero.");
+    }
+  } catch (error) {
+    console.error("Error al cargar servicios disponibles:", error);
+  }
+}
+
+/**
  * Enviar la respuesta inicial del talachero.
  */
 async function sendInitialResponse() {
+  const selectedService = $("#available-services").val();
   const servicePrice = parseFloat($("#service-price").val());
   const optionalNote = $("#optional-note").val().trim();
   const coordinates = window.talacheroCoordinates;
@@ -949,21 +1061,21 @@ async function sendInitialResponse() {
   const totalPrice = servicePrice + distancePrice;
 
   // Modificación: Eliminar "con el 15%" y mostrar solo "Precio Final: $X"
-  const description = `Servicio: ${
-    userMessage.serviceName
-  }\nPrecio Base: $${servicePrice.toFixed(2)}\nDistancia: ${distanceKm.toFixed(
+  const description = `Servicio: ${selectedService}\nPrecio Base: $${servicePrice.toFixed(
+    2
+  )}\nDistancia: ${distanceKm.toFixed(
     2
   )} km\nPrecio por Distancia: $${distancePrice.toFixed(
     2
   )}\nSubtotal: $${(servicePrice + distancePrice).toFixed(
     2
-  )}\nPrecio Final: $${totalPrice.toFixed(2)}\n${
-    optionalNote ? "Nota: " + optionalNote : ""
-  }`;
+  )}\nPrecio Final: $${totalPrice.toFixed(
+    2
+  )}\n${optionalNote ? "Nota: " + optionalNote : ""}`;
 
   const messageData = {
     sender: activeSession.uid,
-    serviceName: userMessage.serviceName,
+    serviceName: selectedService,
     servicePrice: servicePrice.toFixed(2),
     optionalNote,
     coordinates,
@@ -992,10 +1104,13 @@ async function sendInitialResponse() {
     // Actualizar el estado del chat a "active"
     await update(chatRefGlobal, { status: "active" });
 
+    // Establecer el chatUid del talachero
+    await set(ref(database, `users/${activeSession.uid}/chatUid`), chatIdGlobal);
+
     // Mostrar mensaje de espera
     $("#chat-inputs").html(`
-            <p class="text-center text-muted">Esperando confirmación del usuario...</p>
-        `);
+      <p class="text-center text-muted">Esperando confirmación del usuario...</p>
+    `);
   } catch (error) {
     console.error("Error al enviar la respuesta inicial:", error);
     alert("Hubo un problema al enviar tu respuesta.");
@@ -1112,6 +1227,9 @@ async function handleRequestAction(action) {
         // Limpiar el inChat del talachero
         await set(ref(database, `users/${activeSession.uid}/inChat`), null);
 
+        // Limpiar el chatUid del usuario
+        await set(ref(database, `users/${chatData.sender}/chatUid`), null);
+
         await update(chatRefGlobal, { status: "rejected" });
 
         const rejectionMessage = {
@@ -1138,6 +1256,12 @@ async function handleRequestAction(action) {
 function setupProposalResponse() {
   $("#accept-proposal").on("click", async () => {
     try {
+      const paymentMethod = $("#payment-method").val();
+      if (!paymentMethod) {
+        alert("Por favor, selecciona un método de pago.");
+        return;
+      }
+
       // Actualizar el estado del chat a "confirmed"
       await update(chatRefGlobal, { status: "confirmed" });
 
@@ -1147,6 +1271,7 @@ function setupProposalResponse() {
         sender: "system",
         description: "El usuario ha aceptado la propuesta.",
         timestamp: Date.now(),
+        paymentMethod, // Agregar método de pago al mensaje
       };
       await push(messagesRef, confirmationMessage);
 
@@ -1158,6 +1283,13 @@ function setupProposalResponse() {
         .catch((error) => {
           console.error("Error al establecer el flag inChat:", error);
         });
+
+      // Establecer el flag inChat para el talachero si aún no está establecido
+      const talacheroRef = ref(database, `users/${chatRefGlobal.key}/inChat`);
+      const talacheroSnapshot = await get(talacheroRef);
+      if (!talacheroSnapshot.exists()) {
+        await set(talacheroRef, chatIdGlobal);
+      }
 
       // Mostrar inputs de chat y el mapa
       renderChat("confirmed");
@@ -1191,6 +1323,9 @@ function setupProposalResponse() {
         .catch((error) => {
           console.error("Error al eliminar el flag inChat:", error);
         });
+
+      // Limpiar el chatUid del usuario
+      await set(ref(database, `users/${activeSession.uid}/chatUid`), null);
 
       await clearChatState();
       loadPage("index.html");
@@ -1405,12 +1540,12 @@ function calculateDistance(coord1, coord2) {
  */
 function renderMessageInputs() {
   $("#chat-inputs").html(`
-        <div class="input-group">
-            <input type="text" id="message-input" class="form-control" placeholder="Escribe un mensaje...">
-            <button class="btn btn-primary" id="send-message">Enviar</button>
-            <button class="btn btn-danger" id="close-chat">Cancelar Chat</button>
-        </div>
-    `);
+    <div class="input-group">
+      <input type="text" id="message-input" class="form-control" placeholder="Escribe un mensaje...">
+      <button class="btn btn-primary" id="send-message">Enviar</button>
+      <button class="btn btn-danger" id="close-chat">Cancelar Chat</button>
+    </div>
+  `);
 
   $("#send-message").on("click", sendMessage);
   $("#close-chat").on("click", () => setupCloseChat("cancelled"));
@@ -1449,7 +1584,7 @@ async function sendMessage() {
  * @param {string} cancellationStatus - Estado de cancelación.
  */
 function setupCloseChat(cancellationStatus) {
-  $("#close-chat, #close-rejected-chat").on("click", async () => {
+  $("#close-chat, #close-rejected-chat").off("click").on("click", async () => {
     const confirmClose = confirm("¿Estás seguro de que deseas cerrar el chat?");
     if (!confirmClose) return;
 
@@ -1458,12 +1593,29 @@ function setupCloseChat(cancellationStatus) {
         await update(chatRefGlobal, { status: cancellationStatus });
       }
 
-      // Limpiar el inChat del usuario y del talachero
+      // Obtener datos del chat para identificar al otro participante
+      const chatSnapshot = await get(chatRefGlobal);
+      if (!chatSnapshot.exists()) {
+        alert("El chat no existe o ya fue cerrado.");
+        loadPage("index.html");
+        return;
+      }
+
+      const chatData = chatSnapshot.val();
+      const otherUserId =
+        userTypeGlobal === "usuario" ? chatData.talacheroId : chatData.sender;
+
+      // Limpiar el inChat del usuario que cierra el chat
       await set(ref(database, `users/${activeSession.uid}/inChat`), null);
 
-      // Si el usuario es talachero, también limpiar su propio inChat
-      if (userTypeGlobal === "talachero") {
-        await set(ref(database, `users/${activeSession.uid}/inChat`), null);
+      // Limpiar el inChat del otro participante
+      if (otherUserId) {
+        await set(ref(database, `users/${otherUserId}/inChat`), null);
+      }
+
+      // Limpiar el chatUid si el usuario es "usuario"
+      if (userTypeGlobal === "usuario") {
+        await set(ref(database, `users/${activeSession.uid}/chatUid`), null);
       }
 
       await clearChatState();
@@ -1577,13 +1729,8 @@ function startSimulation() {
       clearInterval(simulationInterval);
       simulationInterval = null;
       simulationRunning = false;
-      alert("¡Llegaste al destino!");
+      return; // Eliminado alert("¡Llegaste al destino!");
 
-      // Evitar múltiples llamadas a setChatStatus
-      if (simulationRunning === false) {
-        setChatStatus("en_servicio");
-      }
-      return;
     }
 
     currentSimulationIndex++;
@@ -1608,10 +1755,11 @@ function startSimulation() {
       simulationRunning = false;
 
       // Evitar múltiples llamadas a setChatStatus
-      if (simulationRunning === false) {
+      if (!alertShown) {
         setChatStatus("en_servicio");
+        alertShown = true;
+        alert("Has llegado al destino y estás atendiendo al usuario.");
       }
-      alert("Has llegado al destino y estás atendiendo al usuario.");
     }
   }, 1000); // Actualiza cada 1 segundo
 }
@@ -1652,6 +1800,6 @@ async function setChatStatus(newStatus) {
       `Error al actualizar el estado del chat a ${newStatus}:`,
       error
     );
-    alert(`Hubo un problema al actualizar el estado del chat.`);
+    alert("Hubo un problema al actualizar el estado del chat.");
   }
 }
