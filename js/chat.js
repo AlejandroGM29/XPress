@@ -241,7 +241,8 @@ function renderMessages(messages) {
   messages.forEach((message) => {
     // Identificar si el mensaje es de tipo 'calculo'
     const isCalculoMessage = message.type === "calculo";
-
+    console.log("HOLA?")
+    debugger
     if (message.type === "route") {
       // Renderizar un botón para abrir el modal si es un mensaje de tipo ruta
       const isTalacheroMessage =
@@ -275,7 +276,7 @@ function renderMessages(messages) {
       if (userTypeGlobal === "talachero") {
         // Mostrar cálculo completo al talachero
         messageContent = `
-          <p>${message.description}</p>
+          <p >${message.description}</p>
           <div id="calculo-map-${message.id}" class="mt-2" style="height: 200px;"></div>
         `;
       } else if (userTypeGlobal === "usuario") {
@@ -295,8 +296,14 @@ function renderMessages(messages) {
         : `<p>${message.description}</p>`;
     }
 
+    let additionalClasses = "";
+    if (isCalculoMessage) {
+      additionalClasses += " calculo-message";
+    }
+
+
     const messageHtml = `
-      <div class="message ${
+      <div  class="${additionalClasses} message ${
         isSystemMessage
           ? "system-message"
           : isUserMessage
@@ -312,6 +319,7 @@ function renderMessages(messages) {
           <small>${new Date(message.timestamp).toLocaleString()}</small>
       </div>
     `;
+    
     chatContainer.append(messageHtml);
 
     // Agregar mapas a los mensajes de cálculo
@@ -1313,6 +1321,7 @@ function setupProposalResponse() {
       const confirmationMessage = {
         sender: "system",
         description: "El usuario ha aceptado la propuesta.",
+        type:"route",
         timestamp: Date.now(),
         paymentMethod, // Agregar método de pago al mensaje
       };

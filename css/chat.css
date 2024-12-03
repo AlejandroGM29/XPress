@@ -112,3 +112,12 @@ button:disabled {
     color: #721c24;
     /* Otros estilos */
 }
+
+/* Agrega esto a tu archivo CSS */
+.margin-bottom-100 {
+    margin-bottom: 100px;
+  }
+  
+  .calculo-message {
+    margin-bottom: 180px;
+  }
