@@ -374,7 +374,7 @@ function renderMessages(messages) {
     }
 
     // Incluir la ubicación en el mensaje si contiene coordenadas
-    if (message.coordinates) {
+    if (message.coordinates && !isCalculoMessage) {
       const mapElementId = `map-${message.id}`;
       const coordinates = message.coordinates;
       const senderType = isUserMessage ? "Tu Ubicación" : "Ubicación del Usuario";
@@ -401,6 +401,38 @@ function renderMessages(messages) {
         .addTo(mapInstance)
         .bindPopup(senderType)
         .openPopup();
+    }
+  });
+
+  // Inicializar los mapas después de que todos los mensajes se hayan renderizado
+  messages.forEach((message) => {
+    if (message.type === "calculo") {
+      const mapElementId = `calculo-map-${message.id}`;
+      const userMapId = `user-map-${message.id}`;
+      const talacheroMapId = `talachero-map-${message.id}`;
+
+      if (message.coordinates) {
+        const userCoordinates = message.coordinates;
+        const talacheroCoordinates = message.talacheroCoordinates;
+
+        if (userCoordinates) {
+          createMap(
+            userMapId,
+            { latitude: userCoordinates.latitude, longitude: userCoordinates.longitude },
+            "userCoordinates",
+            `user-location-status-${message.id}`
+          );
+        }
+
+        if (talacheroCoordinates) {
+          createMap(
+            talacheroMapId,
+            { latitude: talacheroCoordinates.latitude, longitude: talacheroCoordinates.longitude },
+            "talacheroCoordinates",
+            `talachero-location-status-${message.id}`
+          );
+        }
+      }
     }
   });
 }
@@ -698,6 +730,54 @@ function initializeUserMap() {
 }
 
 /**
+ * Inicializa el mapa para el talachero.
+ */
+function initializeTalacheroMap() {
+  $("#get-talachero-location").prop("disabled", true);
+  $("#talachero-map-container").show();
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const talacheroCoordinates = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+        window.talacheroCoordinates = talacheroCoordinates;
+        createMap(
+          "talachero-map",
+          talacheroCoordinates,
+          "talacheroCoordinates",
+          "talachero-location-status"
+        );
+      },
+      (error) => {
+        console.error("Error al obtener la ubicación del talachero:", error);
+        alert(
+          "No se pudo obtener tu ubicación. Por favor, verifica los permisos de tu navegador."
+        );
+        const defaultCoordinates = { latitude: 19.4326, longitude: -99.1332 }; // CDMX
+        createMap(
+          "talachero-map",
+          defaultCoordinates,
+          "talacheroCoordinates",
+          "talachero-location-status"
+        );
+      }
+    );
+  } else {
+    alert("La geolocalización no es compatible con este navegador.");
+    const defaultCoordinates = { latitude: 19.4326, longitude: -99.1332 }; // CDMX
+    createMap(
+      "talachero-map",
+      defaultCoordinates,
+      "talacheroCoordinates",
+      "talachero-location-status"
+    );
+  }
+}
+
+/**
  * Función para crear el mapa (reutilizable).
  * @param {string} mapElementId - ID del elemento del mapa.
  * @param {object} initialCoordinates - Coordenadas iniciales { latitude, longitude }.
@@ -820,8 +900,11 @@ async function sendInitialMessage() {
     const messagesRef = ref(database, `chats/${chatIdGlobal}/messages`);
     await push(messagesRef, messageData);
 
-    const userRef = ref(database, `users/${activeSession.uid}/inChat`);
-    await set(userRef, chatIdGlobal);
+    // Establecer el flag inChat para el usuario
+    await set(ref(database, `users/${activeSession.uid}/inChat`), chatIdGlobal);
+
+    // Establecer el flag inChat para el talachero
+    await set(ref(database, `users/${talacheroId}/inChat`), chatIdGlobal);
 
     localStorage.setItem("activeChat", chatIdGlobal);
     chatRefGlobal = ref(database, `chats/${chatIdGlobal}`);
@@ -881,10 +964,14 @@ function renderTalacheroInitialInputs() {
           <!-- Opciones cargadas dinámicamente -->
         </select>
       </div>
-      <label for="service-price" class="mt-2">Precio del servicio:</label>
-      <input type="number" id="service-price" class="form-control" min="0" step="0.01">
-      <label for="optional-note" class="mt-2">Nota (opcional):</label>
-      <textarea id="optional-note" class="form-control" rows="2"></textarea>
+      <div class="mt-2">
+        <label for="service-price" class="form-label">Precio del servicio:</label>
+        <input type="number" id="service-price" class="form-control" min="0" step="0.01" readonly>
+      </div>
+      <div class="mt-2">
+        <label for="optional-note" class="form-label">Nota (opcional):</label>
+        <textarea id="optional-note" class="form-control" rows="2"></textarea>
+      </div>
       <button class="btn btn-primary mt-3" id="send-initial-response">Enviar Propuesta</button>
       <button class="btn btn-danger mt-3" id="reject-request">Rechazar Solicitud</button>
     </div>
@@ -894,123 +981,82 @@ function renderTalacheroInitialInputs() {
     initializeTalacheroMap();
   });
 
-  loadTalacheroServicePrice();
-  loadAvailableServices();
+  // Cargar los servicios disponibles y preseleccionar si es necesario
+  loadTalacheroServices();
+
+  // Listener para actualizar el precio cuando se selecciona un servicio diferente
+  $("#available-services").on("change", function () {
+    const selectedOption = $(this).find("option:selected");
+    const price = selectedOption.data("price");
+    $("#service-price").val(price ? parseFloat(price).toFixed(2) : "0.00");
+  });
 
   $("#send-initial-response").on("click", sendInitialResponse);
   $("#reject-request").on("click", () => handleRequestAction("rejected"));
 }
 
 /**
- * Inicializa el mapa para el talachero.
+ * Cargar los servicios disponibles del talachero y preseleccionar si es necesario.
  */
-function initializeTalacheroMap() {
-  $("#get-talachero-location").prop("disabled", true);
-  $("#talachero-map-container").show();
-
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const talacheroCoordinates = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
-        window.talacheroCoordinates = talacheroCoordinates;
-        createMap(
-          "talachero-map",
-          talacheroCoordinates,
-          "talacheroCoordinates",
-          "talachero-location-status"
-        );
-        // La ubicación del talachero ya es inmodificable mediante la función createMap
-
-        // Establecer el flag inChat para el talachero para evitar múltiples chats
-        set(ref(database, `users/${activeSession.uid}/inChat`), chatIdGlobal)
-          .then(() => {
-            console.log("Flag inChat establecido para el talachero.");
-          })
-          .catch((error) => {
-            console.error("Error al establecer el flag inChat:", error);
-          });
-      },
-      (error) => {
-        console.error("Error al obtener la ubicación:", error);
-        alert(
-          "No se pudo obtener tu ubicación. Por favor, verifica los permisos de tu navegador."
-        );
-        const defaultCoordinates = { latitude: 19.4326, longitude: -99.1332 }; // CDMX
-        createMap(
-          "talachero-map",
-          defaultCoordinates,
-          "talacheroCoordinates",
-          "talachero-location-status"
-        );
-      }
-    );
-  } else {
-    alert("La geolocalización no es compatible con este navegador.");
-    const defaultCoordinates = { latitude: 19.4326, longitude: -99.1332 }; // CDMX
-    createMap(
-      "talachero-map",
-      defaultCoordinates,
-      "talacheroCoordinates",
-      "talachero-location-status"
-    );
+async function loadTalacheroServices() {
+  const session = JSON.parse(localStorage.getItem("activeSession"));
+  const talacheroId = session.uid;
+  if (!talacheroId) {
+    console.error("No se encontró el talachero seleccionado.");
+    return;
   }
-}
-
-/**
- * Cargar el precio del servicio del mensaje inicial del usuario.
- */
-async function loadTalacheroServicePrice() {
-  const userMessage = await getUserInitialMessage();
-  if (userMessage) {
-    const servicePrice = parseFloat(userMessage.servicePrice);
-    if (!isNaN(servicePrice)) {
-      $("#service-price").val(servicePrice);
-    }
-  }
-}
-
-/**
- * Cargar los servicios disponibles del talachero, incluyendo el del usuario.
- */
-async function loadAvailableServices() {
-  const talacheroId = localStorage.getItem("currentTalacheroId");
-  if (!talacheroId) return;
 
   try {
     const servicesRef = ref(database, `users/${talacheroId}/services`);
     const snapshot = await get(servicesRef);
+    const availableServicesSelect = $("#available-services");
+    availableServicesSelect.empty(); // Limpiar opciones anteriores
+
     if (snapshot.exists()) {
       const services = snapshot.val();
-      const availableServicesSelect = $("#available-services");
-      // Cargar servicios del talachero
-      Object.values(services).forEach((service) => {
-        availableServicesSelect.append(
-          `<option value="${service.name}" data-price="${service.price}">${service.name} - $${service.price}</option>`
-        );
-      });
+      // Filtrar servicios válidos (evitar null y asegurar que tengan name y price)
+      const validServices = Object.values(services).filter(
+        (service) => service && service.name && service.price
+      );
 
-      // Obtener el servicio seleccionado por el usuario
-      const userMessage = await getUserInitialMessage();
-      if (userMessage && userMessage.serviceName) {
-        // Verificar si el servicio del usuario ya está en la lista
-        const exists = Object.values(services).some(
-          (service) => service.name === userMessage.serviceName
-        );
-        if (!exists) {
+      if (validServices.length > 0) {
+        validServices.forEach((service) => {
           availableServicesSelect.append(
-            `<option value="${userMessage.serviceName}" data-price="0" selected>${userMessage.serviceName} - Precio Base</option>`
+            `<option value="${service.name}" data-price="${service.price}">${service.name} - $${service.price}</option>`
           );
+        });
+
+        // Preseleccionar el servicio basado en el mensaje inicial del chat
+        const userMessage = await getUserInitialMessage();
+        if (userMessage && userMessage.serviceName) {
+          // Verificar si el servicio del usuario está en la lista
+          const serviceExists = validServices.some(
+            (service) => service.name === userMessage.serviceName
+          );
+
+          if (serviceExists) {
+            availableServicesSelect.val(userMessage.serviceName).trigger("change");
+          } else {
+            // Si el servicio no existe, añadir una opción personalizada
+            availableServicesSelect.append(
+              `<option value="${userMessage.serviceName}" data-price="0" selected>${userMessage.serviceName} - Precio Base</option>`
+            );
+            $("#service-price").val("0.00");
+          }
         } else {
-          availableServicesSelect
-            .find(`option[value="${userMessage.serviceName}"]`)
-            .prop("selected", true);
+          // Seleccionar el primer servicio por defecto
+          const firstService = validServices[0];
+          availableServicesSelect.val(firstService.name).trigger("change");
         }
+      } else {
+        availableServicesSelect.append(
+          `<option value="" disabled>No tienes servicios registrados</option>`
+        );
       }
     } else {
-      console.log("No se encontraron servicios para el talachero.");
+      availableServicesSelect.append(
+        `<option value="" disabled>No tienes servicios registrados</option>`
+      );
     }
   } catch (error) {
     console.error("Error al cargar servicios disponibles:", error);
@@ -1026,19 +1072,18 @@ async function sendInitialResponse() {
   const optionalNote = $("#optional-note").val().trim();
   const coordinates = window.talacheroCoordinates;
 
+  if (!selectedService || isNaN(servicePrice) || servicePrice <= 0) {
+    alert("Por favor, selecciona un servicio válido y asegúrate de que el precio sea correcto.");
+    return;
+  }
+
   if (!coordinates) {
     alert("Por favor, selecciona tu ubicación en el mapa.");
     return;
   }
 
-  if (isNaN(servicePrice) || servicePrice <= 0) {
-    alert("Por favor, ingresa un precio válido para el servicio.");
-    return;
-  }
-
   // Obtener información del mensaje inicial del usuario
   const userMessage = await getUserInitialMessage();
-  console.log(userMessage);
   if (!userMessage) {
     alert("No se pudo obtener la información del usuario.");
     return;
@@ -1054,13 +1099,11 @@ async function sendInitialResponse() {
   }
 
   // Calcular el precio total
-  const pricePerKm = activeSession.tarifaKm
-    ? parseFloat(activeSession.tarifaKm)
-    : 0;
+  const pricePerKm = activeSession.tarifaKm ? parseFloat(activeSession.tarifaKm) : 0;
   const distancePrice = pricePerKm * distanceKm;
   const totalPrice = servicePrice + distancePrice;
 
-  // Modificación: Eliminar "con el 15%" y mostrar solo "Precio Final: $X"
+  // Descripción detallada del cálculo
   const description = `Servicio: ${selectedService}\nPrecio Base: $${servicePrice.toFixed(
     2
   )}\nDistancia: ${distanceKm.toFixed(
@@ -1285,10 +1328,15 @@ function setupProposalResponse() {
         });
 
       // Establecer el flag inChat para el talachero si aún no está establecido
-      const talacheroRef = ref(database, `users/${chatRefGlobal.key}/inChat`);
-      const talacheroSnapshot = await get(talacheroRef);
-      if (!talacheroSnapshot.exists()) {
-        await set(talacheroRef, chatIdGlobal);
+      const chatSnapshot = await get(chatRefGlobal);
+      if (chatSnapshot.exists()) {
+        const chatData = chatSnapshot.val();
+        const talacheroId = chatData.talacheroId;
+        const talacheroRef = ref(database, `users/${talacheroId}/inChat`);
+        const talacheroSnapshot = await get(talacheroRef);
+        if (!talacheroSnapshot.exists()) {
+          await set(talacheroRef, chatIdGlobal);
+        }
       }
 
       // Mostrar inputs de chat y el mapa
@@ -1620,7 +1668,7 @@ function setupCloseChat(cancellationStatus) {
 
       await clearChatState();
       alert("Chat cerrado exitosamente.");
-      window.location.href = "index.html";
+      loadPage("index.html");
     } catch (error) {
       console.error("Error al cerrar el chat:", error);
       alert("Hubo un problema al cerrar el chat.");
@@ -1730,7 +1778,6 @@ function startSimulation() {
       simulationInterval = null;
       simulationRunning = false;
       return; // Eliminado alert("¡Llegaste al destino!");
-
     }
 
     currentSimulationIndex++;
