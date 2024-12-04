@@ -17,6 +17,32 @@
     </div>
 </div>
 
+<!-- Modal de Calificación -->
+<div class="modal fade" id="ratingModal" tabindex="-1" aria-labelledby="ratingModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ratingModalLabel">Califica tu Experiencia</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <label for="chat-rating" class="form-label">¿Cómo calificarías tu experiencia?</label>
+        <select id="chat-rating" class="form-select">
+          <option value="" selected disabled>Selecciona una calificación</option>
+          <option value="1">1 - Muy Mala</option>
+          <option value="2">2 - Mala</option>
+          <option value="3">3 - Regular</option>
+          <option value="4">4 - Buena</option>
+          <option value="5">5 - Excelente</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="submit-rating">Enviar Calificación</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 
 <div id="chat-container" class="container" data-user-type="usuario">

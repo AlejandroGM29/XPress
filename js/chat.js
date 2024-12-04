@@ -267,23 +267,58 @@ function renderMessages(messages) {
       return;
     }
 
+    // Manejar mensajes de tipo "rating"
+    if (message.type === "rating") {
+      const isUserMessage = message.sender === activeSession.uid;
+      const isSystemMessage = message.sender === "system";
+
+      let messageContent = "";
+
+      if (isUserMessage) {
+        messageContent = `<p>Has calificado este servicio con: <strong>${message.rating}/5</strong></p>`;
+      } else {
+        messageContent = `<p>El usuario ha calificado este servicio con: <strong>${message.rating}/5</strong></p>`;
+      }
+
+      const messageHtml = `
+        <div class="message ${
+          isUserMessage
+            ? "user-message"
+            : isSystemMessage
+            ? "system-message"
+            : "talachero-message"
+        }">
+            ${messageContent}
+            <small>${new Date(message.timestamp).toLocaleString()}</small>
+        </div>
+      `;
+      chatContainer.append(messageHtml);
+      return; // Saltar el renderizado adicional para mensajes de tipo "rating"
+    }
+
     const isUserMessage = message.sender === activeSession.uid;
     const isSystemMessage = message.sender === "system";
 
     let messageContent = "";
 
     if (isCalculoMessage) {
+      // Definir la descripción específica que deseas verificar
+      const targetDescription = "Servicio: test1 Precio Base: $100.00 Distancia: 2.24 km Precio por Distancia: $22.37 Subtotal: $122.37 Precio Final: $122.37 Nota: test";
+
+      // Verificar si la descripción del mensaje coincide exactamente con la descripción objetivo
+      if (message.description.trim() === targetDescription) {
+        additionalClasses += " margin-bottom-100"; // Añadir la clase para el margen
+      }
+
       if (userTypeGlobal === "talachero") {
         // Mostrar cálculo completo al talachero
         messageContent = `
-          <p >${message.description}</p>
+          <p>${message.description}</p>
           <div id="calculo-map-${message.id}" class="mt-2" style="height: 200px;"></div>
         `;
       } else if (userTypeGlobal === "usuario") {
         // Mostrar solo el precio final al usuario
-        const finalPriceMatch = message.description.match(
-          /Precio Final: \$([\d.]+)/
-        );
+        const finalPriceMatch = message.description.match(/Precio Final: \$([\d.]+)/);
         const finalPrice = finalPriceMatch ? finalPriceMatch[1] : "N/A";
         messageContent = `
           <p>Precio Final: $${finalPrice}</p>
@@ -299,11 +334,15 @@ function renderMessages(messages) {
     let additionalClasses = "";
     if (isCalculoMessage) {
       additionalClasses += " calculo-message";
+      // Añadir margin-bottom-100 si la descripción coincide
+      const targetDescription = "Servicio: test1 Precio Base: $100.00 Distancia: 2.24 km Precio por Distancia: $22.37 Subtotal: $122.37 Precio Final: $122.37 Nota: test";
+      if (message.description.trim() === targetDescription) {
+        additionalClasses += " margin-bottom-100";
+      }
     }
 
-
     const messageHtml = `
-      <div  class="${additionalClasses} message ${
+      <div class="${additionalClasses} message ${
         isSystemMessage
           ? "system-message"
           : isUserMessage
@@ -444,6 +483,7 @@ function renderMessages(messages) {
     }
   });
 }
+
 
 /**
  * Renderiza la interfaz según el estado del chat.
@@ -1529,6 +1569,9 @@ async function startJourney() {
 /**
  * Función para completar el servicio (talachero).
  */
+/**
+ * Función para completar el servicio (talachero).
+ */
 async function completeService() {
   try {
     // Actualizar el estado del chat a "completed"
@@ -1543,22 +1586,57 @@ async function completeService() {
     };
     await push(messagesRef, completeMessage);
 
-    // Cerrar el modal
+    // Cerrar el modal de ruta
     $("#routeModal").modal("hide");
 
     // Detener la simulación
     stopSimulation();
 
-    // Remover el chat de ambos perfiles
-    await clearChatState();
+    // Mostrar el modal de calificación
+    $("#ratingModal").modal("show");
 
-    alert("Servicio completado exitosamente.");
-    loadPage("index.html");
+    // Configurar el botón de envío de calificación
+    $("#submit-rating").off("click").on("click", async () => {
+      const rating = $("#chat-rating").val();
+      if (!rating) {
+        alert("Por favor, selecciona una calificación.");
+        return;
+      }
+
+      try {
+        // Guardar la calificación en el chat
+        await update(chatRefGlobal, { rating: parseInt(rating, 10) });
+
+        // Enviar mensaje de calificación (opcional)
+        const ratingMessage = {
+          sender: activeSession.uid,
+          type: "rating",
+          rating: parseInt(rating, 10),
+          description: `Calificación recibida: ${rating}/5`,
+          timestamp: Date.now(),
+        };
+        await push(messagesRef, ratingMessage);
+
+        // Cerrar el modal de calificación
+        $("#ratingModal").modal("hide");
+
+        // Remover el chat de ambos perfiles
+        await clearChatState();
+
+        alert("Servicio completado y calificación enviada exitosamente.");
+        loadPage("index.html");
+      } catch (error) {
+        console.error("Error al enviar la calificación:", error);
+        alert("Hubo un problema al enviar la calificación.");
+      }
+    });
+
   } catch (error) {
     console.error("Error al completar el servicio:", error);
     alert("Hubo un error al completar el servicio.");
   }
 }
+
 
 /**
  * Manejar el botón de completar viaje en el modal (solo para el talachero).
@@ -1814,7 +1892,10 @@ function startSimulation() {
       if (!alertShown) {
         setChatStatus("en_servicio");
         alertShown = true;
-        alert("Has llegado al destino y estás atendiendo al usuario.");
+        if(userTypeGlobal === "talachero"){
+          alert("Has llegado al destino y estás atendiendo al usuario.");
+        }
+        
       }
     }
   }, 1000); // Actualiza cada 1 segundo
