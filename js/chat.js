@@ -239,12 +239,8 @@ function renderMessages(messages) {
   chatContainer.empty();
 
   messages.forEach((message) => {
-    // Identificar si el mensaje es de tipo 'calculo'
-    const isCalculoMessage = message.type === "calculo";
-    console.log("HOLA?")
-    debugger
+    // Manejar mensajes de tipo "route"
     if (message.type === "route") {
-      // Renderizar un botón para abrir el modal si es un mensaje de tipo ruta
       const isTalacheroMessage =
         message.sender !== activeSession.uid && message.sender !== "system";
       const messageHtml = `
@@ -267,8 +263,8 @@ function renderMessages(messages) {
       return;
     }
 
-    // Manejar mensajes de tipo "rating"
-    if (message.type === "rating") {
+    // Manejar mensajes de tipo "rating" solo para usuarios
+    if (message.type === "rating" && userTypeGlobal === "usuario") {
       const isUserMessage = message.sender === activeSession.uid;
       const isSystemMessage = message.sender === "system";
 
@@ -300,8 +296,9 @@ function renderMessages(messages) {
     const isSystemMessage = message.sender === "system";
 
     let messageContent = "";
+    let additionalClasses = "";
 
-    if (isCalculoMessage) {
+    if (message.type === "calculo") {
       // Definir la descripción específica que deseas verificar
       const targetDescription = "Servicio: test1 Precio Base: $100.00 Distancia: 2.24 km Precio por Distancia: $22.37 Subtotal: $122.37 Precio Final: $122.37 Nota: test";
 
@@ -325,20 +322,12 @@ function renderMessages(messages) {
           <div id="calculo-map-${message.id}" class="mt-2" style="height: 200px;"></div>
         `;
       }
+
+      additionalClasses += " calculo-message";
     } else {
       messageContent = isSystemMessage
         ? `<p><em>${message.description}</em></p>`
         : `<p>${message.description}</p>`;
-    }
-
-    let additionalClasses = "";
-    if (isCalculoMessage) {
-      additionalClasses += " calculo-message";
-      // Añadir margin-bottom-100 si la descripción coincide
-      const targetDescription = "Servicio: test1 Precio Base: $100.00 Distancia: 2.24 km Precio por Distancia: $22.37 Subtotal: $122.37 Precio Final: $122.37 Nota: test";
-      if (message.description.trim() === targetDescription) {
-        additionalClasses += " margin-bottom-100";
-      }
     }
 
     const messageHtml = `
@@ -362,7 +351,7 @@ function renderMessages(messages) {
     chatContainer.append(messageHtml);
 
     // Agregar mapas a los mensajes de cálculo
-    if (isCalculoMessage) {
+    if (message.type === "calculo") {
       const mapElementId = `calculo-map-${message.id}`;
       const userCoordinates = message.coordinates; // Obtener las coordenadas del usuario
       const talacheroCoordinates = message.talacheroCoordinates; // Ubicación del talachero
@@ -420,8 +409,8 @@ function renderMessages(messages) {
       }
     }
 
-    // Incluir la ubicación en el mensaje si contiene coordenadas
-    if (message.coordinates && !isCalculoMessage) {
+    // Incluir la ubicación en el mensaje si contiene coordenadas y no es un mensaje de cálculo
+    if (message.coordinates && message.type !== "calculo") {
       const mapElementId = `map-${message.id}`;
       const coordinates = message.coordinates;
       const senderType = isUserMessage ? "Tu Ubicación" : "Ubicación del Usuario";
@@ -486,6 +475,65 @@ function renderMessages(messages) {
 
 
 /**
+ * Función para iniciar la simulación localmente en ambos clientes.
+ */
+function startLocalSimulation() {
+  // Agregar listener para cuando se muestra el modal
+  $("#routeModal").on("shown.bs.modal", async function (event) {
+    // Inicializar el mapa si aún no lo está
+    if (!mapInitialized) {
+      map = L.map("route-map").setView([0, 0], 15); // Inicializar con [0,0], se ajustará después
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(map);
+
+      // Obtener las coordenadas de inicio y fin
+      const routeCoords = await getRouteCoordinatesForSimulation();
+      if (!routeCoords || routeCoords.length === 0) {
+        console.error("No se pudo obtener las coordenadas para la simulación.");
+        return;
+      }
+
+      routeCoordinates = routeCoords;
+      currentSimulationIndex = 0;
+
+      // Dibujar la ruta en el mapa
+      routeLine = L.polyline(routeCoordinates, {
+        color: "blue",
+        weight: 5,
+      }).addTo(map);
+      map.fitBounds(routeLine.getBounds());
+
+      // Agregar marcador inicial
+      simulationMarker = L.marker(routeCoordinates[0], { icon: talacheroIcon })
+        .addTo(map)
+        .bindPopup("Talachero en Trayecto")
+        .openPopup();
+
+      // Iniciar la simulación
+      startSimulation();
+
+      mapInitialized = true;
+    } else {
+      // Si el mapa ya está inicializado, simplemente ajustar la vista y marcar la posición actual
+      if (simulationMarker && routeCoordinates.length > 0) {
+        simulationMarker.setLatLng(routeCoordinates[currentSimulationIndex]);
+        map.panTo(routeCoordinates[currentSimulationIndex]);
+      }
+      map.invalidateSize(); // Recalcular el tamaño del mapa
+    }
+  });
+
+  // Mostrar el modal si eres el talachero
+  if (userTypeGlobal === "talachero") {
+    $("#routeModal").modal("show");
+    $("#modal-complete-journey").hide(); // Inicialmente oculto
+  }
+}
+
+
+
+/**
  * Renderiza la interfaz según el estado del chat.
  * @param {string} status - Estado actual del chat.
  */
@@ -522,15 +570,17 @@ function renderUserChat(status) {
         <label for="payment-method" class="form-label">Método de Pago:</label>
         <select id="payment-method" class="form-select">
           <option value="efectivo">Efectivo</option>
-          <!-- Suponiendo que las tarjetas están almacenadas en activeSession.cards -->
-          ${activeSession.cards && activeSession.cards.length > 0
-            ? activeSession.cards
-                .map(
-                  (card) =>
-                    `<option value="${card.id}">${card.brand} **** **** **** ${card.last4}</option>`
-                )
-                .join("")
-            : `<option value="" disabled>No tienes tarjetas registradas</option>`}
+          <!-- Manejar tarjetas almacenadas como objeto -->
+          ${
+            activeSession.cards && Object.keys(activeSession.cards).length > 0
+              ? Object.entries(activeSession.cards)
+                  .map(
+                    ([cardId, card]) =>
+                      `<option value="${cardId}">Tarjeta **** **** **** ${card.number.slice(-4)}</option>`
+                  )
+                  .join("")
+              : `<option value="" disabled>No tienes tarjetas registradas</option>`
+          }
         </select>
       </div>
       <button class="btn btn-success mt-3" id="accept-proposal">Aceptar</button>
@@ -563,6 +613,7 @@ function renderUserChat(status) {
     setupCloseChat("completed");
   }
 }
+
 
 /**
  * Renderiza la interfaz del talachero según el estado del chat.
@@ -1344,6 +1395,9 @@ async function handleRequestAction(action) {
 /**
  * Configurar botones para aceptar o rechazar la propuesta (usuario).
  */
+/**
+ * Configurar botones para aceptar o rechazar la propuesta (usuario).
+ */
 function setupProposalResponse() {
   $("#accept-proposal").on("click", async () => {
     try {
@@ -1432,6 +1486,7 @@ function setupProposalResponse() {
     }
   });
 }
+
 
 /**
  * Enviar un mensaje especial para la ruta.
@@ -1572,6 +1627,9 @@ async function startJourney() {
 /**
  * Función para completar el servicio (talachero).
  */
+/**
+ * Función para completar el servicio (talachero).
+ */
 async function completeService() {
   try {
     // Actualizar el estado del chat a "completed"
@@ -1592,50 +1650,57 @@ async function completeService() {
     // Detener la simulación
     stopSimulation();
 
-    // Mostrar el modal de calificación
-    $("#ratingModal").modal("show");
+    // Mostrar el modal de calificación solo para usuarios
+    if (userTypeGlobal === "usuario") {
+      $("#ratingModal").modal("show");
 
-    // Configurar el botón de envío de calificación
-    $("#submit-rating").off("click").on("click", async () => {
-      const rating = $("#chat-rating").val();
-      if (!rating) {
-        alert("Por favor, selecciona una calificación.");
-        return;
-      }
+      // Configurar el botón de envío de calificación
+      $("#submit-rating").off("click").on("click", async () => {
+        const rating = $("#chat-rating").val();
+        if (!rating) {
+          alert("Por favor, selecciona una calificación.");
+          return;
+        }
 
-      try {
-        // Guardar la calificación en el chat
-        await update(chatRefGlobal, { rating: parseInt(rating, 10) });
+        try {
+          // Guardar la calificación en el chat
+          await update(chatRefGlobal, { rating: parseInt(rating, 10) });
 
-        // Enviar mensaje de calificación (opcional)
-        const ratingMessage = {
-          sender: activeSession.uid,
-          type: "rating",
-          rating: parseInt(rating, 10),
-          description: `Calificación recibida: ${rating}/5`,
-          timestamp: Date.now(),
-        };
-        await push(messagesRef, ratingMessage);
+          // Enviar mensaje de calificación (opcional)
+          const ratingMessage = {
+            sender: activeSession.uid,
+            type: "rating",
+            rating: parseInt(rating, 10),
+            description: `Calificación recibida: ${rating}/5`,
+            timestamp: Date.now(),
+          };
+          await push(messagesRef, ratingMessage);
 
-        // Cerrar el modal de calificación
-        $("#ratingModal").modal("hide");
+          // Cerrar el modal de calificación
+          $("#ratingModal").modal("hide");
 
-        // Remover el chat de ambos perfiles
-        await clearChatState();
+          // Remover el chat de ambos perfiles
+          await clearChatState();
 
-        alert("Servicio completado y calificación enviada exitosamente.");
-        loadPage("index.html");
-      } catch (error) {
-        console.error("Error al enviar la calificación:", error);
-        alert("Hubo un problema al enviar la calificación.");
-      }
-    });
+          alert("Servicio completado y calificación enviada exitosamente.");
+          loadPage("index.html");
+        } catch (error) {
+          console.error("Error al enviar la calificación:", error);
+          alert("Hubo un problema al enviar la calificación.");
+        }
+      });
+    } else {
+      // Para talacheros, simplemente alertar y redirigir si es necesario
+      alert("Servicio completado.");
+      loadPage("index.html");
+    }
 
   } catch (error) {
     console.error("Error al completar el servicio:", error);
     alert("Hubo un error al completar el servicio.");
   }
 }
+
 
 
 /**
@@ -1763,62 +1828,7 @@ function setupCloseChat(cancellationStatus) {
   });
 }
 
-/**
- * Función para iniciar la simulación localmente en ambos clientes.
- */
-function startLocalSimulation() {
-  // Agregar listener para cuando se muestra el modal
-  $("#routeModal").on("shown.bs.modal", async function (event) {
-    // Inicializar el mapa si aún no lo está
-    if (!mapInitialized) {
-      map = L.map("route-map").setView([0, 0], 15); // Inicializar con [0,0], se ajustará después
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors",
-      }).addTo(map);
 
-      // Obtener las coordenadas de inicio y fin
-      const routeCoords = await getRouteCoordinatesForSimulation();
-      if (!routeCoords || routeCoords.length === 0) {
-        console.error("No se pudo obtener las coordenadas para la simulación.");
-        return;
-      }
-
-      routeCoordinates = routeCoords;
-      currentSimulationIndex = 0;
-
-      // Dibujar la ruta en el mapa
-      routeLine = L.polyline(routeCoordinates, {
-        color: "blue",
-        weight: 5,
-      }).addTo(map);
-      map.fitBounds(routeLine.getBounds());
-
-      // Agregar marcador inicial
-      simulationMarker = L.marker(routeCoordinates[0], { icon: talacheroIcon })
-        .addTo(map)
-        .bindPopup("Talachero en Trayecto")
-        .openPopup();
-
-      // Iniciar la simulación
-      startSimulation();
-
-      mapInitialized = true;
-    } else {
-      // Si el mapa ya está inicializado, simplemente ajustar la vista y marcar la posición actual
-      if (simulationMarker && routeCoordinates.length > 0) {
-        simulationMarker.setLatLng(routeCoordinates[currentSimulationIndex]);
-        map.panTo(routeCoordinates[currentSimulationIndex]);
-      }
-      map.invalidateSize(); // Recalcular el tamaño del mapa
-    }
-  });
-
-  // Mostrar el modal si eres el talachero
-  if (userTypeGlobal === "talachero") {
-    $("#routeModal").modal("show");
-    $("#modal-complete-journey").hide(); // Inicialmente oculto
-  }
-}
 
 /**
  * Obtener las coordenadas de la ruta para la simulación.

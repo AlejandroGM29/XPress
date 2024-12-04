@@ -29,6 +29,10 @@ export function initUserPage() {
         talacheros = Object.values(snapshot.val()).filter(
           (user) => user.userType === "talachero" && user.isActive !== false // Solo activos
         );
+
+        // Calcular las calificaciones basadas en los chats del usuario
+        await calculateRatingsForTalacheros();
+
         renderTalacheros(selectedType);
         console.log("Talacheros cargados:", talacheros);
       } else {
@@ -37,6 +41,60 @@ export function initUserPage() {
       }
     } catch (error) {
       console.error("Error al cargar talacheros:", error);
+    }
+  }
+
+  /**
+   * Calcular el promedio de calificaciones y el número de reseñas para cada Talachero/Mecánico
+   */
+  async function calculateRatingsForTalacheros() {
+    try {
+      // Referencia a todos los chats
+      const chatsRef = ref(database, "chats");
+      const chatsSnapshot = await get(chatsRef);
+
+      if (chatsSnapshot.exists()) {
+        const allChats = Object.values(chatsSnapshot.val());
+
+        // Para cada Talachero, encontrar los chats donde participó y calcular el promedio de calificaciones
+        talacheros = talacheros.map((talachero) => {
+          // Filtrar chats donde el talachero actual es el proveedor de servicios
+          const talacheroChats = allChats.filter(
+            (chat) =>
+              chat.talacheroId === talachero.uid &&
+              typeof chat.rating === "number"
+          );
+
+          const reviewCount = talacheroChats.length;
+          const totalRating = talacheroChats.reduce(
+            (sum, chat) => sum + chat.rating,
+            0
+          );
+          const averageRating =
+            reviewCount > 0 ? (totalRating / reviewCount).toFixed(1) : "N/A";
+
+          return {
+            ...talachero,
+            averageRating, // Promedio de calificaciones
+            reviewCount,   // Número de reseñas
+          };
+        });
+      } else {
+        // No hay chats
+        talacheros = talacheros.map((talachero) => ({
+          ...talachero,
+          averageRating: "N/A",
+          reviewCount: 0,
+        }));
+      }
+    } catch (error) {
+      console.error("Error al calcular calificaciones:", error);
+      // En caso de error, asignar valores por defecto
+      talacheros = talacheros.map((talachero) => ({
+        ...talachero,
+        averageRating: "N/A",
+        reviewCount: 0,
+      }));
     }
   }
 
@@ -61,6 +119,15 @@ export function initUserPage() {
           .map((service) => `<li>${service.name}</li>`)
           .join("");
 
+        // **MODIFICACIÓN**: Añadir el precio por kilómetro
+        const tarifaKm = talachero.tarifaKm
+          ? `$${parseFloat(talachero.tarifaKm).toFixed(2)}/km`
+          : "N/A";
+
+        // **MODIFICACIÓN**: Mostrar averageRating y reviewCount
+        const averageRating = talachero.averageRating || "N/A";
+        const reviewCount = talachero.reviewCount || 0;
+
         const listItem = `
         <div class="list-item d-flex align-items-center" data-id="${
           talachero.uid
@@ -69,9 +136,8 @@ export function initUserPage() {
             talachero.photo || "./img/team/person.png"
           }" class="list-img me-3" alt="${talachero.name}">
           <div class="list-content">
-            <p><strong>${talachero.name}</strong> ${
-          talachero.rating || "N/A"
-        } ⭐ (${talachero.reviews || 0} reseñas)</p>
+            <p><strong>${talachero.name}</strong> ${averageRating} ⭐ (${reviewCount} reseñas)</p>
+            <p><strong>Precio por Kilómetro:</strong> ${tarifaKm}</p> <!-- Precio por km añadido -->
             <ul class="services-list mb-2">
               ${servicesHtml}
             </ul>
@@ -130,6 +196,12 @@ export function initUserPage() {
             <p><strong>Contacto:</strong> ${talachero.phone} | ${
           talachero.email
         }</p>
+            <p><strong>Precio por Kilómetro:</strong> ${
+              talachero.tarifaKm
+                ? `$${parseFloat(talachero.tarifaKm).toFixed(2)}/km`
+                : "N/A"
+            }</p> <!-- Precio por km añadido -->
+            <p><strong>Calificación:</strong> ${talachero.averageRating} ⭐ (${talachero.reviewCount} reseñas)</p> <!-- Calificación añadida -->
           </div>
         </div>
       `);
@@ -196,9 +268,9 @@ export function initUserPage() {
 
     $("#confirmChat").on("click", async function () {
       localStorage.setItem("selectedServiceId", serviceId);
-      console.log(talacheroId)
+      console.log(talacheroId);
       /* localStorage.setItem("activeChat", talacheroId); */
-   
+
       /* const userRef = ref(database, `users/${activeSession.uid}/inChat`);
       await set(userRef, talacheroId); */
 
@@ -242,16 +314,19 @@ export function initUserPage() {
     });
   });
 
+  /**
+   * Verificar el estado del chat activo del usuario
+   */
   async function checkChatStatus() {
     const userRef = ref(database, `users/${activeSession.uid}`);
     const snapshot = await get(userRef);
-  
+
     if (snapshot.exists()) {
       const userData = snapshot.val();
-      console.log(userData)
-      console.log(userData.inChat)
+      console.log(userData);
+      console.log(userData.inChat);
       if (userData.inChat) {
-        console.log("carga aqui?")
+        console.log("carga aqui?");
         // Si hay un chat activo, redirigir al usuario al chat
         alert("Tienes un chat activo. Redirigiéndote...");
         localStorage.setItem("activeChat", userData.inChat);
@@ -261,14 +336,13 @@ export function initUserPage() {
         localStorage.removeItem("activeChat");
         localStorage.removeItem("currentTalacheroId");
         localStorage.removeItem("selectedServiceId");
-  
+
         // Si hay elementos de la interfaz que dependían del chat, limpiarlos
         $("#chat-related-section").hide(); // Oculta cualquier sección relacionada con el chat
         $("#talacheros-list").html(""); // Limpia la lista de talacheros
       }
     }
   }
-  
 
   // Verificar antes de iniciar un nuevo chat
   checkChatStatus();

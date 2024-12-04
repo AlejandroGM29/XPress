@@ -90,11 +90,13 @@ function updateNavbar(userType, name, hasActiveChat) {
         Mi Cuenta (${name})
       </a>
       <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+        <li><a class="dropdown-item" href="#" data-page="perfil.html">Perfil</a></li>
         <li><a class="dropdown-item" href="#" id="logout">Cerrar Sesión</a></li>
       </ul>
     </li>
   `);
 }
+
 
 // Actualizar el navbar cuando no hay sesión activa
 function updateNavbarForNoSession() {
@@ -105,6 +107,7 @@ function updateNavbarForNoSession() {
   `);
 }
 
+// Cargar dinámicamente las páginas
 // Cargar dinámicamente las páginas
 function loadPage(page) {
   fetch(`pages/${page}`)
@@ -124,10 +127,29 @@ function loadPage(page) {
         loadMecanicoScript();
       } else if (page === "chat.html") {
         loadChatScript();
+      } else if (page === "perfil.html") {
+        loadPerfilScript(); // Cargar perfil.js cuando se carga perfil.html
       }
     })
     .catch((error) => console.error(error));
 }
+
+
+// Cargar el script de perfil dinámicamente
+function loadPerfilScript() {
+  import("./perfil.js")
+    .then((module) => {
+      if (module.initPerfilPage) {
+        module.initPerfilPage();
+      } else {
+        console.error("La función initPerfilPage no está definida en el módulo perfil.js");
+      }
+    })
+    .catch((error) => {
+      console.error("Error al cargar el módulo perfil.js:", error);
+    });
+}
+
 
 // Cargar el script de usuario dinámicamente
 function loadUserScript() {

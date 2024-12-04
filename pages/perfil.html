@@ -1,0 +1,162 @@
+<!-- pages/perfil.html -->
+<section class="profile-section">
+    <!-- Banner -->
+    <div class="banner-image position-relative">
+      <div class="banner-overlay d-flex align-items-center justify-content-center">
+        <h1 class="text-white text-uppercase text-center">
+          Gestiona tu <span class="text-warning">Perfil</span>
+        </h1>
+      </div>
+    </div>
+  
+    <!-- Contenido principal -->
+    <div class="container my-5">
+      <!-- Tabs -->
+      <ul class="nav nav-tabs" id="profileTab" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link active"
+            id="general-info-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#general-info"
+            type="button"
+            role="tab"
+            aria-controls="general-info"
+            aria-selected="true"
+          >
+            Información General
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link"
+            id="bank-cards-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#bank-cards"
+            type="button"
+            role="tab"
+            aria-controls="bank-cards"
+            aria-selected="false"
+          >
+            Tarjetas Bancarias
+          </button>
+        </li>
+      </ul>
+  
+      <div class="tab-content" id="profileTabContent">
+        <!-- Información General -->
+        <div
+          class="tab-pane fade show active p-4"
+          id="general-info"
+          role="tabpanel"
+          aria-labelledby="general-info-tab"
+        >
+          <form id="update-profile-form">
+            <h2 class="text-center mb-4">Información General</h2>
+            <div class="mb-3">
+              <label for="profile-name" class="form-label">Nombre Completo</label>
+              <input
+                type="text"
+                class="form-control"
+                id="profile-name"
+                placeholder="Nombre Completo"
+                required
+              />
+            </div>
+            <div class="mb-3">
+              <label for="profile-phone" class="form-label">Número Telefónico</label>
+              <input
+                type="tel"
+                class="form-control"
+                id="profile-phone"
+                placeholder="Número Telefónico"
+                required
+              />
+            </div>
+            <div class="mb-3">
+              <label for="profile-email" class="form-label">Correo Electrónico</label>
+              <input
+                type="email"
+                class="form-control"
+                id="profile-email"
+                placeholder="Correo Electrónico"
+                required
+                readonly
+              />
+            </div>
+            <div class="mb-3">
+              <label for="profile-password" class="form-label">Contraseña</label>
+              <input
+                type="password"
+                class="form-control"
+                id="profile-password"
+                placeholder="Nueva Contraseña"
+              />
+              <small class="form-text text-muted">Deja este campo vacío si no deseas cambiar tu contraseña.</small>
+            </div>
+            <div class="mb-3">
+              <label for="profile-photo" class="form-label">Foto de Perfil</label>
+              <input
+                type="file"
+                class="form-control"
+                id="profile-photo"
+                accept="image/*"
+              />
+              <small class="form-text text-muted">Deja este campo vacío si no deseas cambiar tu foto.</small>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Actualizar Perfil</button>
+          </form>
+        </div>
+  
+        <!-- Tarjetas Bancarias -->
+        <div
+          class="tab-pane fade p-4"
+          id="bank-cards"
+          role="tabpanel"
+          aria-labelledby="bank-cards-tab"
+        >
+          <h2 class="text-center mb-4">Tarjetas Bancarias</h2>
+          <form id="add-card-form" class="mb-4">
+            <div class="mb-3">
+              <label for="card-number" class="form-label">Número de Tarjeta</label>
+              <input
+                type="text"
+                class="form-control"
+                id="card-number"
+                placeholder="1234 5678 9012 3456"
+                maxlength="19"
+                required
+              />
+            </div>
+            <div class="mb-3">
+              <label for="card-expiry" class="form-label">Fecha de Expiración</label>
+              <input
+                type="month"
+                class="form-control"
+                id="card-expiry"
+                required
+              />
+            </div>
+            <div class="mb-3">
+              <label for="card-cvv" class="form-label">CVV</label>
+              <input
+                type="text"
+                class="form-control"
+                id="card-cvv"
+                placeholder="123"
+                maxlength="4"
+                required
+              />
+            </div>
+            <button type="submit" class="btn btn-success w-100">Añadir Tarjeta</button>
+          </form>
+  
+          <h4 class="mb-3">Tus Tarjetas</h4>
+          <ul class="list-group" id="cards-list">
+            <!-- Las tarjetas se añadirán aquí dinámicamente -->
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+  
