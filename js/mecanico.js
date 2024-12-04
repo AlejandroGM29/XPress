@@ -27,36 +27,58 @@ export function initMecanicoPage() {
     const tarifaKmDisplay = $("#tarifa-km-display");
     tarifaKmDisplay.text(activeSession.tarifaKm || "No establecida");
 
-    // Configurar tarifa por kilómetro
+    // Configurar tarifa por kilómetro usando un modal de Bootstrap 5
     const setTarifaKmButton = $("#set-tarifa-km");
     setTarifaKmButton.on("click", async () => {
-        const tarifaKm = prompt("Introduce tu tarifa por kilómetro:");
-        if (tarifaKm) {
-            try {
-                await update(ref(database, `users/${activeSession.uid}`), { tarifaKm });
-                activeSession.tarifaKm = tarifaKm;
-                localStorage.setItem("activeSession", JSON.stringify(activeSession));
-                tarifaKmDisplay.text(tarifaKm);
-                alert("Tarifa actualizada exitosamente.");
-            } catch (error) {
-                console.error("Error al actualizar tarifa:", error);
+        // Configuramos el contenido dinámico del modal
+        $("#tarifa-km-modal .modal-body").html(`
+            <p>Selecciona tu tarifa por kilómetro:</p>
+            <select id="tarifa-km-select" class="form-select">
+                <option value="15" ${activeSession.tarifaKm == 15 ? "selected" : ""}>15</option>
+                <option value="20" ${activeSession.tarifaKm == 20 ? "selected" : ""}>20</option>
+                <option value="25" ${activeSession.tarifaKm == 25 ? "selected" : ""}>25</option>
+            </select>
+        `);
+
+        // Obtenemos y mostramos el modal correctamente
+        const tarifaKmModal = new bootstrap.Modal(document.getElementById("tarifa-km-modal"), {
+            backdrop: true,
+            keyboard: true,
+        });
+
+        tarifaKmModal.show();
+
+        // Esperamos la confirmación
+        $("#confirm-tarifa-km").off("click").on("click", async () => {
+            const tarifaKm = $("#tarifa-km-select").val();
+            if (tarifaKm) {
+                try {
+                    await update(ref(database, `users/${activeSession.uid}`), { tarifaKm });
+                    activeSession.tarifaKm = tarifaKm;
+                    localStorage.setItem("activeSession", JSON.stringify(activeSession));
+                    tarifaKmDisplay.text(tarifaKm);
+                    alert("Tarifa actualizada exitosamente.");
+                } catch (error) {
+                    console.error("Error al actualizar tarifa:", error);
+                }
             }
-        }
+            tarifaKmModal.hide();
+        });
     });
 
     // Limpiamos eventos previos antes de adjuntar nuevos
-    $(document).off('.mecanicoEvents');
+    $(document).off(".mecanicoEvents");
 
     // Usamos delegación de eventos con espacio de nombres
-    $(document).on('click.mecanicoEvents', '.reject-request', function() {
-        const chatId = $(this).closest('[data-chat-id]').data('chat-id');
-        handleRequestAction(chatId, 'rejected');
+    $(document).on("click.mecanicoEvents", ".reject-request", function () {
+        const chatId = $(this).closest("[data-chat-id]").data("chat-id");
+        handleRequestAction(chatId, "rejected");
     });
 
-    $(document).on('click.mecanicoEvents', '.card-left', function() {
-        const chatId = $(this).closest('[data-chat-id]').data('chat-id');
-        localStorage.setItem('activeChat', chatId);
-        loadPage('chat.html');
+    $(document).on("click.mecanicoEvents", ".card-left", function () {
+        const chatId = $(this).closest("[data-chat-id]").data("chat-id");
+        localStorage.setItem("activeChat", chatId);
+        loadPage("chat.html");
     });
 
     // Verificar si hay un chat activo y redirigir
@@ -69,7 +91,7 @@ export function destroyMecanicoPage() {
         requestsUnsubscribe();
         requestsUnsubscribe = null;
     }
-    $(document).off('.mecanicoEvents');
+    $(document).off(".mecanicoEvents");
 }
 
 async function checkChatStatus() {
@@ -101,14 +123,14 @@ function loadRequests(talacheroId) {
     // Si hay un listener anterior, lo desuscribimos
     if (requestsCallback) {
         console.log("Desuscribiendo listener anterior");
-        off(requestsRef, 'value', requestsCallback);
+        off(requestsRef, "value", requestsCallback);
         requestsCallback = null;
     }
 
     // Definimos el callback y lo almacenamos
     requestsCallback = async (snapshot) => {
         if (isProcessing) {
-            console.log('Ya se está procesando, se omite esta llamada');
+            console.log("Ya se está procesando, se omite esta llamada");
             return;
         }
         isProcessing = true;
@@ -180,8 +202,6 @@ function loadRequests(talacheroId) {
     // Registramos el listener
     onValue(requestsRef, requestsCallback);
 }
-
-
 
 function renderRequestCard(chatId, chatData) {
     console.log(`Renderizando tarjeta para solicitud: ${chatId}`, chatData);

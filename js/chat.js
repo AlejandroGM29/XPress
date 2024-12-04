@@ -63,6 +63,9 @@ function loadPage(page) {
 }
 
 // Exportar la función para inicializar la página de chat
+/**
+ * Exportar la función para inicializar la página de chat
+ */
 export function initChatPage() {
   console.log("initChatPage called");
 
@@ -100,6 +103,7 @@ export function initChatPage() {
   validateChatState();
 }
 
+
 /**
  * Valida el estado actual del chat y renderiza la interfaz correspondiente.
  */
@@ -134,7 +138,7 @@ async function validateChatState() {
 
     const chatData = chatSnapshot.val();
 
-    // Si el chat está cerrado, limpiar el estado y redirigir
+        // Si el chat está cerrado, limpiar el estado y redirigir
     if (
       chatData.status === "cancelled" ||
       chatData.status === "completed" ||
@@ -146,6 +150,7 @@ async function validateChatState() {
       loadPage("index.html");
       return;
     }
+
 
     // Mostrar alerta una sola vez cuando el servicio empieza
     if (
@@ -533,10 +538,6 @@ function startLocalSimulation() {
 
 
 
-/**
- * Renderiza la interfaz según el estado del chat.
- * @param {string} status - Estado actual del chat.
- */
 function renderChat(status) {
   $("#chat-inputs").empty();
 
@@ -550,7 +551,56 @@ function renderChat(status) {
     simulationRunning = true;
     startLocalSimulation();
   }
+
+  // Mostrar el modal de calificación si el estado es "completed" y el usuario es "usuario"
+  if (userTypeGlobal === "usuario" && status === "completed" && !alertShown) {
+    $("#ratingModal").modal("show");
+    alertShown = true; // Asegurar que el modal solo aparezca una vez
+
+    // Configurar el listener para el botón de envío de calificación
+    $("#submit-rating").off("click").on("click", async () => {
+      const rating = $("#chat-rating").val();
+      console.log("Rating selected:", rating);
+      if (!rating) {
+        alert("Por favor, selecciona una calificación.");
+        return;
+      }
+
+      try {
+        // Guardar la calificación en el chat
+        await update(chatRefGlobal, { rating: parseInt(rating, 10) });
+        console.log("Rating updated");
+
+        // Enviar mensaje de calificación (opcional)
+        const messagesRef = ref(database, `chats/${chatIdGlobal}/messages`);
+        const ratingMessage = {
+          sender: activeSession.uid,
+          type: "rating",
+          rating: parseInt(rating, 10),
+          description: `Calificación recibida: ${rating}/5`,
+          timestamp: Date.now(),
+        };
+        await push(messagesRef, ratingMessage);
+        console.log("Rating message sent");
+
+        // Cerrar el modal de calificación
+        $("#ratingModal").modal("hide");
+        console.log("ratingModal closed");
+
+        // Remover el chat de ambos perfiles
+        await clearChatState();
+        console.log("Chat state cleared");
+
+        alert("Servicio completado y calificación enviada exitosamente.");
+        loadPage("index.html");
+      } catch (error) {
+        console.error("Error al enviar la calificación:", error);
+        alert("Hubo un problema al enviar la calificación.");
+      }
+    });
+  }
 }
+
 
 /**
  * Renderiza la interfaz del usuario según el estado del chat.
@@ -889,11 +939,24 @@ function createMap(
   windowCoordinatesVariableName,
   locationStatusElementId
 ) {
+  const mapElement = document.getElementById(mapElementId);
+  
+  // Verificar si el mapa ya está inicializado en este contenedor
+  if (mapElement._leaflet_map) {
+    console.log(`Mapa ya inicializado en ${mapElementId}`);
+    return; // Salir de la función si ya está inicializado
+  }
+
+  // Crear una nueva instancia de Leaflet Map
   const mapInstance = L.map(mapElementId).setView(
     [initialCoordinates.latitude, initialCoordinates.longitude],
     15
   );
 
+  // Almacenar la instancia del mapa en el elemento DOM para futuras referencias
+  mapElement._leaflet_map = mapInstance;
+
+  // Agregar la capa de tiles de OpenStreetMap
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "&copy; OpenStreetMap contributors",
   }).addTo(mapInstance);
@@ -939,6 +1002,7 @@ function createMap(
     });
   }
 }
+
 
 /**
  * Enviar el primer mensaje y crear el chat en Firebase (usuario).
@@ -1627,36 +1691,42 @@ async function startJourney() {
 /**
  * Función para completar el servicio (talachero).
  */
-/**
- * Función para completar el servicio (talachero).
- */
 async function completeService() {
   try {
-    // Actualizar el estado del chat a "completed"
-    await update(chatRefGlobal, { status: "completed" });
-
-    // Enviar mensaje al usuario
+    console.log("completeService called");
+    debugger
+    // Enviar mensaje al usuario indicando que el servicio ha sido completado
     const messagesRef = ref(database, `chats/${chatIdGlobal}/messages`);
     const completeMessage = {
       sender: "system",
       description: "El talachero ha completado el servicio.",
       timestamp: Date.now(),
+      type:"rating"
     };
     await push(messagesRef, completeMessage);
+    console.log("completeMessage sent");
 
     // Cerrar el modal de ruta
     $("#routeModal").modal("hide");
+    console.log("routeModal closed");
 
     // Detener la simulación
     stopSimulation();
+    console.log("Simulation stopped");
+
+    // Actualizar el estado del chat a "completed"
+    await update(chatRefGlobal, { status: "completed" });
+    console.log("Chat status updated to 'completed'");
 
     // Mostrar el modal de calificación solo para usuarios
     if (userTypeGlobal === "usuario") {
+      console.log("Showing ratingModal");
       $("#ratingModal").modal("show");
 
       // Configurar el botón de envío de calificación
       $("#submit-rating").off("click").on("click", async () => {
         const rating = $("#chat-rating").val();
+        console.log("Rating selected:", rating);
         if (!rating) {
           alert("Por favor, selecciona una calificación.");
           return;
@@ -1665,6 +1735,7 @@ async function completeService() {
         try {
           // Guardar la calificación en el chat
           await update(chatRefGlobal, { rating: parseInt(rating, 10) });
+          console.log("Rating updated");
 
           // Enviar mensaje de calificación (opcional)
           const ratingMessage = {
@@ -1675,12 +1746,15 @@ async function completeService() {
             timestamp: Date.now(),
           };
           await push(messagesRef, ratingMessage);
+          console.log("Rating message sent");
 
           // Cerrar el modal de calificación
           $("#ratingModal").modal("hide");
+          console.log("ratingModal closed");
 
           // Remover el chat de ambos perfiles
           await clearChatState();
+          console.log("Chat state cleared");
 
           alert("Servicio completado y calificación enviada exitosamente.");
           loadPage("index.html");
@@ -1691,10 +1765,9 @@ async function completeService() {
       });
     } else {
       // Para talacheros, simplemente alertar y redirigir si es necesario
-      alert("Servicio completado.");
+      alert("Servicio completado exitosamente.");
       loadPage("index.html");
     }
-
   } catch (error) {
     console.error("Error al completar el servicio:", error);
     alert("Hubo un error al completar el servicio.");
@@ -1703,10 +1776,14 @@ async function completeService() {
 
 
 
+
+
+
 /**
  * Manejar el botón de completar viaje en el modal (solo para el talachero).
  */
 $("#modal-complete-journey").on("click", async () => {
+  console.log("await de complete")
   await completeService();
 });
 
